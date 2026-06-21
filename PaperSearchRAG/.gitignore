@@ -1,0 +1,17 @@
+# Python 가상환경 격리
+.venv/
+venv/
+ENV/
+
+# 파이썬 컴파일 찌꺼기
+**/__pycache__/
+*.py[cod]
+*$py.class
+
+# VS Code 설정 및 툴 찌꺼기
+.vscode/
+.DS_Store
+
+# 데이터베이스 및 로그 파일
+*.log
+data/
