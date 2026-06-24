@@ -35,8 +35,6 @@ for record in dcmdir.DirectoryRecordSequence:
     rec_type = record.DirectoryRecordType
 
     if rec_type == "PATIENT":
-        current_patient_id = record.get("PatientID", "Unkown")
-                
         # 1. pydicom의 디코딩 캐시를 우회하기 위해, 데이터 엘리먼트 자체를 가져옵니다.
         name_element = record.get(0x00100010) # PatientName 공식 DICOM 태그 번호
         

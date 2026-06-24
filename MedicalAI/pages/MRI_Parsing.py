@@ -1,5 +1,5 @@
 import streamlit as st
-from modules.vlm_processor import process_dicom_file
+from modules.dicomdir_processor import process_dicom_zip
 
 st.set_page_config(
     page_title="MRI Parsing Engine",
@@ -13,13 +13,15 @@ st.markdown("---")
 has_file = False
 
 uploaded_file = st.file_uploader(
-    label="DICOM (.dcm) 파일을 업로드 하세요."
+    label="DICOM (.dcm) 파일을 업로드 하세요.",
+    type=["zip"],
+    accept_multiple_files=False
 )
 
 if uploaded_file is not None:
     has_file = True
     with st.spinner("DICOM 파일을 읽고 있습니다..."):
-        dicom_result = process_dicom_file(uploaded_file)
+        dicom_result = process_dicom_zip(uploaded_file)
 
     if dicom_result["success"]:
         col1, col2, col3 = st.columns(3)
@@ -27,9 +29,9 @@ if uploaded_file is not None:
         with col1:
             p_name = st.text_input("환자 성명", value=dicom_result["patient_name"])
         with col2:
-            p_id = st.text_inpit("환자 ID", value=dicom_result["patient_id"])
+            p_id = st.text_input("환자 ID", value=dicom_result["patient_id"])
         with col3:
-            s_date = st.text_inpit("검사 일자", value=dicom_result["study_date"])
+            s_date = st.text_input("검사 일자", value=dicom_result["study_date"])
 
         st.success("DICOM 메타데이터 자동 매핑 완료.")
     else:
