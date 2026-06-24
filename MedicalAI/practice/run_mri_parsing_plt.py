@@ -11,7 +11,7 @@ import requests
 import json
 import httpx
 
-dicomdir_path = "./rawData/MRI(강선애, F70)/DICOMDIR"
+dicomdir_path = "../rawData/MRI(강선애, F70)/DICOMDIR"
 
 # matplotlib.rcParams['font.family'] = 'Malgun Gothic'
 # matplotlib.rcParams['axes.unicode_minus'] = False
