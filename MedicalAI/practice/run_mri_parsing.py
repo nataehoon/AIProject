@@ -21,7 +21,7 @@ print("==================================================")
 print("1단계: DICOM 디렉터리 순회 및 생 메모리 적재 개시")
 print("==================================================")
 
-dicomdir_path = "../rawData/MRI(강선애, F70)/DICOMDIR"
+dicomdir_path = "./rawData/MRI(강선애, F70)/DICOMDIR"
 
 if not os.path.exists(dicomdir_path):
     print(f"에러: 해당 경로에 DICOMDIR 파일이 없습니다: {dicomdir_path}")
@@ -149,22 +149,22 @@ for target_modality in ["CR", "MR"]:
 if images_payload_array:
     llm_payload = {
         "model": "qwen3-vl:8b",
-                "messages": [
-                    {
-                        "role": "user",
-                        "content": (
-                            "[IMPORTANT INSTRUCTION]: 당신은 한국어 의료 전문의입니다. 반드시 한국어로만 답변하고, 생각 과정(reasoning)이나 영어 혼잣말은 절대 출력하지 말고 최종 소견서 서식만 출력하세요.\n\n"
-                            f"[환자 의료 메타데이터 컨텍스트]\n"
-                            f"- 환자명: {current_patient_name} | ID: {current_patient_id}\n"
-                            f"- 검사 일자: {current_study_date}\n\n"
-                            f"[종합 방사선학적 정밀 판독 지시서]\n"
-                            f"{global_description}\n"
-                            "위 인덱스별 영상을 상호 연동하여 종합 소견서 초안을 한국어로 상세히 구성해 주세요."
-                        ),
-                        "images": images_payload_array
-                    }
-                ],
-                "temperature": 0.0
+        "messages": [
+            {
+                "role": "user",
+                "content": (
+                    "[IMPORTANT INSTRUCTION]: 당신은 한국어 의료 전문의입니다. 반드시 한국어로만 답변하고, 생각 과정(reasoning)이나 영어 혼잣말은 절대 출력하지 말고 최종 소견서 서식만 출력하세요.\n\n"
+                    f"[환자 의료 메타데이터 컨텍스트]\n"
+                    f"- 환자명: {current_patient_name} | ID: {current_patient_id}\n"
+                    f"- 검사 일자: {current_study_date}\n\n"
+                    f"[종합 방사선학적 정밀 판독 지시서]\n"
+                    f"{global_description}\n"
+                    "위 인덱스별 영상을 상호 연동하여 종합 소견서 초안을 한국어로 상세히 구성해 주세요."
+                ),
+                "images": images_payload_array
+            }
+        ],
+        "temperature": 0.0
     }
 
     print(global_description)

@@ -5,9 +5,12 @@ import requests
 import json
 from config import DEFAULT_NUM_PREDICT, DEFAULT_MODEL, OLLAMA_API_URL, DEFAULT_TEMPERATURE
 
-def run_vlm_inference_generator(pixel_buffers, patient_info):
+def run_vlm_inference_generator(patient_info):
     """UI단에서 토스해준 pixel_buffers와 환자 정보를 전달받아 Ollama VLM과 패킷을 맺고 스트림 제너레이터를 리턴"""
 
+    pixel_buffers = patient_info["pixel_buffer"]
+    description = ""
+    images_payload_array = []
     for target_modality in ["CR", "MR"]:
         total_slices = len(pixel_buffers[target_modality])
 
@@ -38,7 +41,6 @@ def run_vlm_inference_generator(pixel_buffers, patient_info):
                 plt.close()
 
                 base64_encoded = base64.b64encode(memory_stream.getvalue()).decode('utf-8')
-                images_payload_array = []
                 images_payload_array.append(base64_encoded)
 
                 if target_modality == "CR":
@@ -59,8 +61,8 @@ def run_vlm_inference_generator(pixel_buffers, patient_info):
                         "content": (
                             "[IMPORTANT INSTRUCTION]: 당신은 한국어 의료 전문의입니다. 반드시 한국어로만 답변하고, 생각 과정(reasoning)이나 영어 혼잣말은 절대 출력하지 말고 최종 소견서 서식만 출력하세요.\n\n"
                             f"[환자 의료 메타데이터 컨텍스트]\n"
-                            f"- 환자명: {patient_info['name']} | ID: {patient_info['id']}\n"
-                            f"- 검사 일자: {patient_info['date']}\n\n"
+                            f"- 환자명: {patient_info['patient_name']} | ID: {patient_info['patient_id']}\n"
+                            f"- 검사 일자: {patient_info['study_date']}\n\n"
                             f"[종합 방사선학적 정밀 판독 지시서]\n"
                             f"{description}\n"
                             "위 인덱스별 영상을 상호 연동하여 종합 소견서 초안을 한국어로 상세히 구성해 주세요."
@@ -68,20 +70,15 @@ def run_vlm_inference_generator(pixel_buffers, patient_info):
                         "images": images_payload_array
                     }
                 ],
-                "options":{
-                    "temperature": DEFAULT_TEMPERATURE,
-                    "num_predict": DEFAULT_NUM_PREDICT
-                },
-                "stream": True
-                                
+                "temperature": 0.0
             }
 
             response = requests.post(OLLAMA_API_URL, json=llm_payload, stream=True, timeout=300)
             response.raise_for_status()
 
-            for chunk in response.iter_content(chunk_size=512):
+            for chunk in response.iter_lines():
                 if chunk:
-                    decoded_line += chunk.decode('utf-8').strip()
+                    decoded_line = chunk.decode('utf-8').strip()
 
                     if decoded_line.startswith("data:"):
                         data_content = decoded_line[5:].strip()

@@ -1,5 +1,6 @@
 import streamlit as st
 from modules.dicomdir_processor import process_dicom_zip
+from modules.ai_processor import run_vlm_inference_generator
 
 st.set_page_config(
     page_title="MRI Parsing Engine",
@@ -10,8 +11,6 @@ st.set_page_config(
 st.header("VLM 멀티 프레임 하이브리드 판독 엔진")
 st.markdown("---")
 
-has_file = False
-
 uploaded_file = st.file_uploader(
     label="DICOM (.dcm) 파일을 업로드 하세요.",
     type=["zip"],
@@ -19,7 +18,6 @@ uploaded_file = st.file_uploader(
 )
 
 if uploaded_file is not None:
-    has_file = True
     with st.spinner("DICOM 파일을 읽고 있습니다..."):
         dicom_result = process_dicom_zip(uploaded_file)
 
@@ -27,17 +25,31 @@ if uploaded_file is not None:
         col1, col2, col3 = st.columns(3)
 
         with col1:
-            p_name = st.text_input("환자 성명", value=dicom_result["patient_name"])
+            st.text_input("환자 성명", value=dicom_result["patient_name"])
         with col2:
-            p_id = st.text_input("환자 ID", value=dicom_result["patient_id"])
+            st.text_input("환자 ID", value=dicom_result["patient_id"])
         with col3:
-            s_date = st.text_input("검사 일자", value=dicom_result["study_date"])
+            st.text_input("검사 일자", value=dicom_result["study_date"])
 
-        st.success("DICOM 메타데이터 자동 매핑 완료.")
+        with st.spinner("제공된 정보를 분석하고 있습니다..."):
+            vlm_stream = run_vlm_inference_generator(dicom_result)
+
+        ui_output_container = st.empty()
+        final_report = ""
+
+        for text_chunk in vlm_stream:
+            final_report += text_chunk
+            ui_output_container.markdown(final_report + "▌")
+
+        if final_report:
+            # 최종 확정본 렌더링 (우측의 깜빡이는 커서 ▌ 제거 완료 버전)
+            ui_output_container.markdown(final_report)
+            st.success("AI 멀티모달 하이브리드 전문의 소견서 추출이 최종 완료되었습니다.")
+        else:
+            st.error("백엔드 커널로부터 전달받은 텍스트 청크가 유실되어 분석에 실패했습니다.")
     else:
         st.error(f"실패하였습니다. {dicom_result['error']}")
 else:
-    has_file = True
     col1, col2, col3 = st.columns(3)
     with col1:
         st.text_input("환자 성명", value="", placeholder="파일을 업로드하면 자동 입력됩니다", disabled=True)
