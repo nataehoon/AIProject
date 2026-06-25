@@ -3,7 +3,7 @@ import base64
 import io
 import requests
 import json
-from config import DEFAULT_NUM_PREDICT, DEFAULT_MODEL, OLLAMA_API_URL
+from config import DEFAULT_NUM_PREDICT, DEFAULT_MODEL, OLLAMA_API_URL, DEFAULT_TEMPERATURE
 
 def run_vlm_inference_generator(pixel_buffers, patient_info):
     """UI단에서 토스해준 pixel_buffers와 환자 정보를 전달받아 Ollama VLM과 패킷을 맺고 스트림 제너레이터를 리턴"""
@@ -53,26 +53,26 @@ def run_vlm_inference_generator(pixel_buffers, patient_info):
         if images_payload_array:
             llm_payload = {
                 "model": DEFAULT_MODEL,
-                                "messages": [
-                                    {
-                                        "role": "user",
-                                        "content": (
-                                            "[IMPORTANT INSTRUCTION]: 당신은 한국어 의료 전문의입니다. 반드시 한국어로만 답변하고, 생각 과정(reasoning)이나 영어 혼잣말은 절대 출력하지 말고 최종 소견서 서식만 출력하세요.\n\n"
-                                            f"[환자 의료 메타데이터 컨텍스트]\n"
-                                            f"- 환자명: {patient_info['name']} | ID: {patient_info['id']}\n"
-                                            f"- 검사 일자: {patient_info['date']}\n\n"
-                                            f"[종합 방사선학적 정밀 판독 지시서]\n"
-                                            f"{description}\n"
-                                            "위 인덱스별 영상을 상호 연동하여 종합 소견서 초안을 한국어로 상세히 구성해 주세요."
-                                        ),
-                                        "images": images_payload_array
-                                    }
-                                ],
-                                "options":{
-                                    "temperature": 0.0,
-                                    "num_predict": DEFAULT_NUM_PREDICT
-                                },
-                                "stream": True
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": (
+                            "[IMPORTANT INSTRUCTION]: 당신은 한국어 의료 전문의입니다. 반드시 한국어로만 답변하고, 생각 과정(reasoning)이나 영어 혼잣말은 절대 출력하지 말고 최종 소견서 서식만 출력하세요.\n\n"
+                            f"[환자 의료 메타데이터 컨텍스트]\n"
+                            f"- 환자명: {patient_info['name']} | ID: {patient_info['id']}\n"
+                            f"- 검사 일자: {patient_info['date']}\n\n"
+                            f"[종합 방사선학적 정밀 판독 지시서]\n"
+                            f"{description}\n"
+                            "위 인덱스별 영상을 상호 연동하여 종합 소견서 초안을 한국어로 상세히 구성해 주세요."
+                        ),
+                        "images": images_payload_array
+                    }
+                ],
+                "options":{
+                    "temperature": DEFAULT_TEMPERATURE,
+                    "num_predict": DEFAULT_NUM_PREDICT
+                },
+                "stream": True
                                 
             }
 
