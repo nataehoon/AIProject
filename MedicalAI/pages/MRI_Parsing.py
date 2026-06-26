@@ -58,7 +58,7 @@ if uploaded_file is not None:
     else:
         st.error(f"실패하였습니다. {dicom_result['error']}")
 else:
-        col1, col2, col3 = st.columns(3)
+    col1, col2, col3 = st.columns(3)
     with col1:
         st.text_input("환자 성명", value="", placeholder="파일을 업로드하면 자동 입력됩니다", disabled=True)
     with col2:
