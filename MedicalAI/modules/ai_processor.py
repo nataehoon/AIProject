@@ -83,8 +83,8 @@ def run_vlm_inference_generator(patient_info):
                     if decoded_line.startswith("data:"):
                         data_content = decoded_line[5:].strip()
 
-                        if data_content == "[DONE]":
-                            break
+                        #if data_content == "[DONE]":
+                        #    break
 
                         try:
                             chunk_json = json.loads(data_content)
