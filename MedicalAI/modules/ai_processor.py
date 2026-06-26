@@ -52,48 +52,53 @@ def run_vlm_inference_generator(patient_info):
                 if 'plt' in locals() or 'plt' in globals():
                     plt.close()
 
-        if images_payload_array:
-            llm_payload = {
-                "model": DEFAULT_MODEL,
-                "messages": [
-                    {
-                        "role": "user",
-                        "content": (
-                            "[IMPORTANT INSTRUCTION]: 당신은 한국어 의료 전문의입니다. 반드시 한국어로만 답변하고, 생각 과정(reasoning)이나 영어 혼잣말은 절대 출력하지 말고 최종 소견서 서식만 출력하세요.\n\n"
-                            f"[환자 의료 메타데이터 컨텍스트]\n"
-                            f"- 환자명: {patient_info['patient_name']} | ID: {patient_info['patient_id']}\n"
-                            f"- 검사 일자: {patient_info['study_date']}\n\n"
-                            f"[종합 방사선학적 정밀 판독 지시서]\n"
-                            f"{description}\n"
-                            "위 인덱스별 영상을 상호 연동하여 종합 소견서 초안을 한국어로 상세히 구성해 주세요."
-                        ),
-                        "images": images_payload_array
-                    }
-                ],
-                "temperature": 0.0
-            }
+    if images_payload_array:
+        llm_payload = {
+            "model": DEFAULT_MODEL,
+            "messages": [
+                {
+                    "role": "user",
+                    "content": (
+                        "[IMPORTANT INSTRUCTION]: 당신은 한국어 의료 전문의입니다. 반드시 한국어로만 답변하고, 생각 과정(reasoning)이나 영어 혼잣말은 절대 출력하지 말고 최종 소견서 서식만 출력하세요.\n\n"
+                        f"[환자 의료 메타데이터 컨텍스트]\n"
+                        f"- 환자명: {patient_info['patient_name']} | ID: {patient_info['patient_id']}\n"
+                        f"- 검사 일자: {patient_info['study_date']}\n\n"
+                        f"[종합 방사선학적 정밀 판독 지시서]\n"
+                        f"{description}\n"
+                        "위 인덱스별 영상을 상호 연동하여 종합 소견서 초안을 한국어로 상세히 구성해 주세요."
+                    ),
+                    "images": images_payload_array
+                }
+            ],
+            "temperature": 0.0,
+            "options": {"num_predict": 2048}
+        }
 
-            response = requests.post(OLLAMA_API_URL, json=llm_payload, stream=True, timeout=300)
-            response.raise_for_status()
+        response = requests.post(OLLAMA_API_URL, json=llm_payload, stream=True, timeout=300)
+        response.raise_for_status()
 
-            for chunk in response.iter_lines():
-                if chunk:
-                    decoded_line = chunk.decode('utf-8').strip()
+        reasoning_text = ""
+        for index, chunk in enumerate(response.iter_lines()):
+            if chunk:
+                decoded_line = chunk.decode('utf-8').strip()
 
-                    if decoded_line.startswith("data:"):
-                        data_content = decoded_line[5:].strip()
+                if decoded_line.startswith("data:"):
+                    data_content = decoded_line[5:].strip()
+                    #print(f"{index}__{reasoning_text}")
 
-                        #if data_content == "[DONE]":
-                        #    break
+                    if data_content == "[DONE]":
+                        print(reasoning_text)
+                        break
 
-                        try:
-                            chunk_json = json.loads(data_content)
-                            chunk_text = chunk_json.get("choices", [{}])[0].get("delta", {}).get("content", "")
+                    try:
+                        chunk_json = json.loads(data_content)
+                        chunk_text = chunk_json.get("choices", [{}])[0].get("delta", {}).get("content", "")
+                        reasoning_text += chunk_json.get("choices", [{}])[0].get("delta", {}).get("reasoning", "")
 
-                            if chunk_text:
-                                yield chunk_text
-                                
-                        except Exception as e:
-                            print(f"[스트림 파싱 예외 발생]: {e}")
+                        if chunk_text:
+                            yield chunk_text
+                            
+                    except Exception as e:
+                        print(f"[스트림 파싱 예외 발생]: {e}")
 
     
