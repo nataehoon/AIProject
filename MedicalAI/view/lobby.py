@@ -1,4 +1,5 @@
 import streamlit as st
+from models.member import UserSessionDTO
 
 st.set_page_config(
     page_title="MRI Parsing Engine",
@@ -6,7 +7,7 @@ st.set_page_config(
     layout="wide"
 )
 
-st.title(f"{st.session_state.user_profile["user_id"]}님 안녕하세요 \n 병력 진단 시스템")
+st.title(f"{st.session_state.user_profile.name}님 안녕하세요 \n 병력 진단 시스템")
 st.markdown("---")
 
 st.subheader("시스템 아키텍처 개요")
