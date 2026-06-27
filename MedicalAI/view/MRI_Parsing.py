@@ -36,7 +36,7 @@ if uploaded_file is not None:
         with st.container(height=500):
             output_placeholder = st.empty()
             
-            with output_placeholder.spinner("제공된 정보를 분석하고 있습니다..."):
+            with output_placeholder.spinner("🧐 제공된 정보를 분석하고 있습니다..."):
                 try:
                     vlm_stream = run_vlm_inference_generator(dicom_result)
 

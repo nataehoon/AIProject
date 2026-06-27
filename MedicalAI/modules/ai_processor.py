@@ -3,7 +3,25 @@ import base64
 import io
 import requests
 import json
-from config import DEFAULT_NUM_PREDICT, DEFAULT_MODEL, OLLAMA_API_URL, DEFAULT_TEMPERATURE
+from config import VLM_MODEL, LLM_MODEL, OLLAMA_VLM_API_URL, OLLAMA_LLM_API_URL
+
+def run_llm_generator(chatMessage):
+    llm_payload = {
+        "model": LLM_MODEL,
+        "message": [
+            {
+                "role": "system",
+                "content": ""
+            },
+            {
+                "role": "user",
+                "content": ""
+            }
+        ],
+        "temperature": 0.0,
+        "options": {"num_predict": 2048}
+    }
+    pass
 
 def run_vlm_inference_generator(patient_info):
     """UI단에서 토스해준 pixel_buffers와 환자 정보를 전달받아 Ollama VLM과 패킷을 맺고 스트림 제너레이터를 리턴"""
@@ -54,7 +72,7 @@ def run_vlm_inference_generator(patient_info):
 
     if images_payload_array:
         llm_payload = {
-            "model": DEFAULT_MODEL,
+            "model": VLM_MODEL,
             "messages": [
                 {
                     "role": "user",
@@ -74,7 +92,7 @@ def run_vlm_inference_generator(patient_info):
             "options": {"num_predict": 2048}
         }
 
-        response = requests.post(OLLAMA_API_URL, json=llm_payload, stream=True, timeout=300)
+        response = requests.post(OLLAMA_VLM_API_URL, json=llm_payload, stream=True, timeout=300)
         response.raise_for_status()
 
         reasoning_text = ""
