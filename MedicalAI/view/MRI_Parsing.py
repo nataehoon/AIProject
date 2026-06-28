@@ -1,6 +1,8 @@
 import streamlit as st
 from modules.dicomdir_processor import process_dicom_zip
 from modules.ai_processor import run_vlm_inference_generator
+from models.mediinfo import Mediinfo
+from services.medical_service import MedicalService
 
 st.set_page_config(
     page_title="MRI Parsing Engine",
@@ -17,11 +19,32 @@ uploaded_file = st.file_uploader(
     accept_multiple_files=False
 )
 
-if uploaded_file is not None:
+if "retry" not in st.session_state:
+    st.session_state.retry = False
+
+my_medi = Mediinfo()
+result_text_container = st.empty()
+def save_retry():
+    re_try = st.button("재시도")
+    if re_try:
+        save_result = MedicalService.save_my_mediinfo(my_medi=my_medi)
+        result_text_container.empty()
+        with result_text_container:
+            if save_result:
+                st.success("성공적으로 분석 내용을 저장 하였습니다.")
+            else:
+                st.error("분석 저장에 실패하였습니다. 다시 시도하시려면 아래 버튼을 눌러주세요.")
+                save_retry()
+
+if uploaded_file is not None and not st.session_state.retry:
+    my_medi.member_id = 1
+    my_medi.file_name = uploaded_file.name
     with st.spinner("DICOM 파일을 읽고 있습니다..."):
         dicom_result = process_dicom_zip(uploaded_file)
 
     if dicom_result["success"]:
+        my_medi.modality = ",".join(dicom_result["pixel_buffer"])
+
         col1, col2, col3 = st.columns(3)
 
         with col1:
@@ -33,31 +56,39 @@ if uploaded_file is not None:
 
         result_success = False
 
-        with st.container(height=500):
-            output_placeholder = st.empty()
-            
-            with output_placeholder.spinner("🧐 제공된 정보를 분석하고 있습니다..."):
-                try:
-                    vlm_stream = run_vlm_inference_generator(dicom_result)
+        output_placeholder = st.empty()
+        
+        with output_placeholder.spinner("🧐 제공된 정보를 분석하고 있습니다..."):
+            try:
+                vlm_stream = run_vlm_inference_generator(dicom_result)
 
-                    output_placeholder.empty()
-                    final_report = ""
+                output_placeholder.empty()
+                final_report = ""
 
-                    for text_chunk in vlm_stream:
-                        final_report += text_chunk
-                        output_placeholder.markdown(final_report + "▌")
+                for text_chunk in vlm_stream:
+                    final_report += text_chunk
+                    output_placeholder.markdown(final_report + "▌")
 
-                    if final_report:
-                        # 최종 확정본 렌더링 (우측의 깜빡이는 커서 ▌ 제거 완료 버전)
-                        output_placeholder.markdown(final_report)
-                        result_success = True
-                    else:
-                        st.error("백엔드 커널로부터 전달받은 텍스트 청크가 유실되어 분석에 실패했습니다.")
-                except Exception as e:
-                    output_placeholder.empty()
-                    st.error("파일 읽기를 실패하였습니다.")
+                if final_report:
+                    output_placeholder.markdown(final_report)
+                    result_success = True
+                else:
+                    st.error("백엔드 커널로부터 전달받은 텍스트 청크가 유실되어 분석에 실패했습니다.")
+            except Exception as e:
+                output_placeholder.empty()
+                st.error("파일 읽기를 실패하였습니다.")
         if result_success:
-            st.success("성공적으로 분석을 마쳤습니다.")
+            my_medi.analyzed_text = final_report
+            print(my_medi.model_dump())
+            save_result = MedicalService.save_my_mediinfo(my_medi=my_medi)
+            result_text_container.empty()
+            with result_text_container:
+                if save_result:
+                    st.success("성공적으로 분석 내용을 저장 하였습니다.")
+                else:
+                    st.error("분석 저장에 실패하였습니다. 다시 시도하시려면 아래 버튼을 눌러주세요.")
+                    st.session_state.retry = True
+                    save_retry()
     else:
         st.error(f"실패하였습니다. {dicom_result['error']}")
 else:

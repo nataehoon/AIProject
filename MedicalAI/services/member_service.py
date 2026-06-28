@@ -1,4 +1,3 @@
-from dataclasses import dataclass
 from modules.db_repository import execute_select_query
 from models.member import Member, MemberProfile, UserSessionDTO
 from datetime import datetime, timedelta, timezone

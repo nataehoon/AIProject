@@ -3,6 +3,7 @@ from psycopg.rows import dict_row
 import streamlit as st
 from dotenv import load_dotenv
 import os
+from typing import List, Tuple
 
 load_dotenv()
 
@@ -21,3 +22,38 @@ def execute_select_query(query: str, params: tuple = None):
                 cur.execute(query)
 
             return cur.fetchall()
+
+def execute_non_query(query: str, params: tuple = None) -> bool:
+    pool = init_connection_pool()
+    with pool.connection() as conn:
+        with conn.cursor() as cur:
+            try:
+                if params:
+                    cur.execute(query, params)
+                else:
+                    cur.execute(query)
+
+                conn.commit()
+
+                return True
+            except Exception as e:
+                print(f"[non_query 실패]: {e}")
+                return False
+
+def execute_transaction_query(queries_params: List[Tuple[str, tuple]]) -> bool:
+    pool = init_connection_pool()
+    with pool.connection() as conn:
+        try:
+            with conn.cursor() as cur:
+                for query, params in queries_params:
+                    if params:
+                        cur.execute(query, params)
+                    else:
+                        cur.execute(query)
+
+            conn.commit()
+            return True
+        except Exception as e:
+            print(f"[실패]: {e}")
+            conn.rollback()
+            return False

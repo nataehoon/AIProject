@@ -1,8 +1,9 @@
 from pydantic import BaseModel
+from typing import Optional
 
 class Mediinfo(BaseModel):
-    id: int
-    member_id:int
-    modality: str
-    file_name: str
-    analyzed_text: str
+    id: int = 0
+    member_id:int = 0
+    modality: str = ""
+    file_name: str = ""
+    analyzed_text: str = ""
