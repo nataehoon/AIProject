@@ -19,24 +19,26 @@ def run_llm_generator(chatMessage: List[Dict[str, str]]):
 
     response = requests.post(OLLAMA_LLM_API_URL, json=llm_payload, stream=True, timeout=300)
     response.raise_for_status()
-
+    
     reasoning_text = ""
+    finish_text = ""
     for index, chunk in enumerate(response.iter_lines()):
         if chunk:
             decoded_line = chunk.decode('utf-8').strip()
 
             if decoded_line.startswith("data:"):
                 data_content = decoded_line[5:].strip()
-                #print(f"{index}__{reasoning_text}")
+                print(f"{index}__{decoded_line}")
 
                 if data_content == "[DONE]":
-                    print(reasoning_text)
+                    print(finish_text)
                     break
 
                 try:
                     chunk_json = json.loads(data_content)
                     chunk_text = chunk_json.get("choices", [{}])[0].get("delta", {}).get("content", "")
                     reasoning_text += chunk_json.get("choices", [{}])[0].get("delta", {}).get("reasoning", "")
+                    finish_text += chunk_json.get("choices", [{}])[0].get("delta", {}).get("finish_reason", "")
 
                     if chunk_text:
                         yield chunk_text

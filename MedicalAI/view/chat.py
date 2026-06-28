@@ -19,7 +19,7 @@ if "global_chat_history" not in st.session_state:
     })
 
     st.session_state.global_chat_history.append({
-        "role": "assitant",
+        "role": "assistant",
         "content": f"안녕하세요, {st.session_state.user_profile.name}님 어떤 의료 데이터를 함께 검토해 드릴까요?"
     })
 
@@ -54,7 +54,6 @@ with chat_viewport:
             with ai_col:
                 with st.chat_message("assistant"):
                     st.write(message["content"])
-
 
 if user_query := st.chat_input("의료 질문을 입력하세요.", disabled=st.session_state.is_processing):
     st.session_state.global_chat_history.append({"role": "user", "content": user_query})
@@ -92,7 +91,6 @@ if user_query := st.chat_input("의료 질문을 입력하세요.", disabled=st.
                     if final_report:
                         # 최종 확정본 렌더링 (우측의 깜빡이는 커서 ▌ 제거 완료 버전)
                         response_placeholder.markdown(final_report)
-                        result_success = True
 
     st.session_state.global_chat_history.append({"role": "assistant", "content": final_report})
     st.session_state.is_processing = False
