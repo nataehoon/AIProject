@@ -5,7 +5,7 @@ st.markdown(
     <style>
     /* 사이드바 내부에 표시되는 모든 페이지 링크의 텍스트 크기와 자간 조정 */
     [data-testid="stSidebarNavItems"] span {
-        font-size: 18px !important;  /* 기본 폰트 크기를 18px로 시각적 확장 */
+        font-size: 16px !important;  /* 기본 폰트 크기를 18px로 시각적 확장 */
         font-weight: 500 !important; /* 폰트 두께를 약간 두껍게 설정 */
         color: #31333F;             /* 텍스트 색상 지정 */
     }
