@@ -1,4 +1,5 @@
 import streamlit as st
+import time
 #from models.member import UserSessionDTO
 
 st.set_page_config(
@@ -37,6 +38,11 @@ def rerander_status():
                     st.markdown("1번 진행중")
                     st.markdown("2번 진행중")
                     st.markdown(":red[3번 진행중]")
+                if st.session_state.status == 4:
+                    st.markdown("1번 진행중")
+                    st.markdown("2번 진행중")
+                    st.markdown("3번 진행중")
+                    st.markdown(":green[완료]")
 
 rerander_status()
 
@@ -47,7 +53,18 @@ with col1:
         with st.container(height=one_row_height, border=True):
             search = st.button("🔍 새 자료 찾기")
             if search:
+                st.session_state.status = 0
                 st.session_state.status += 1
-                if st.session_state.status == 4:
-                    st.session_state.status = 0
+                rerander_status()
+                time.sleep(5)
+
+                st.session_state.status += 1
+                rerander_status()
+                time.sleep(5)
+
+                st.session_state.status += 1
+                rerander_status()
+                time.sleep(5)
+
+                st.session_state.status += 1
                 rerander_status()
