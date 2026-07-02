@@ -1,5 +1,6 @@
 import streamlit as st
 import time
+from services.medical_service import MedicalService
 #from models.member import UserSessionDTO
 
 st.set_page_config(
@@ -15,11 +16,13 @@ if "searching" not in st.session_state:
     st.session_state.searching = False
 
 status_text = [
-    "1. 허깅 페이스에서 자료 다운로드 중...",
-    "2. 텍스트 청킹 및 전처리 중...",
-    "3. 임베딩 모델 로드 후 백터화 중...",
-    "4. 벡터 데이터베이스 저장 및 인덱싱 중...",
-    "5. RAG시스템 준비 완료!"
+    "1. 허깅 페이스에서 Q&A 데이터 받아오는 중...",
+    "2. 임베딩 모델 로드 후 백터화 중...",
+    "3. 벡터 데이터베이스 저장 및 인덱싱 중...",
+    "4. 허깅 페이스에서 논문 데이터를 받아오는 중...",
+    "5. 텍스트 청킹 및 전처리 중...",
+    "6. 벡터 데이터베이스 저장 및 인덱싱 중...",
+    "7. RAG시스템 준비 완료!"
 ]
 
 one_row_height=500
@@ -33,42 +36,11 @@ def rerander_status():
         with st.container():
             st.header("Status")
             with st.container(height=one_row_height, border=True):
-                if st.session_state.status == 0:
-                    st.markdown(f"{status_text[0]}")
-                    st.markdown(f"{status_text[1]}")
-                    st.markdown(f"{status_text[2]}")
-                    st.markdown(f"{status_text[3]}")
-                    st.markdown(f"{status_text[4]}")
-                if st.session_state.status == 1:
-                    st.markdown(f":green[{status_text[0]}]")
-                    st.markdown(f"{status_text[1]}")
-                    st.markdown(f"{status_text[2]}")
-                    st.markdown(f"{status_text[3]}")
-                    st.markdown(f"{status_text[4]}")
-                if st.session_state.status == 2:
-                    st.markdown(f"{status_text[0]}")
-                    st.markdown(f":green[{status_text[1]}]")
-                    st.markdown(f"{status_text[2]}")
-                    st.markdown(f"{status_text[3]}")
-                    st.markdown(f"{status_text[4]}")
-                if st.session_state.status == 3:
-                    st.markdown(f"{status_text[0]}")
-                    st.markdown(f"{status_text[1]}")
-                    st.markdown(f":green[{status_text[2]}]")
-                    st.markdown(f"{status_text[3]}")
-                    st.markdown(f"{status_text[4]}")
-                if st.session_state.status == 4:
-                    st.markdown(f"{status_text[0]}")
-                    st.markdown(f"{status_text[1]}")
-                    st.markdown(f"{status_text[2]}")
-                    st.markdown(f":green[{status_text[3]}]")
-                    st.markdown(f"{status_text[4]}")
-                if st.session_state.status == 5:
-                    st.markdown(f"{status_text[0]}")
-                    st.markdown(f"{status_text[1]}")
-                    st.markdown(f"{status_text[2]}")
-                    st.markdown(f"{status_text[3]}")
-                    st.markdown(f":green[{status_text[4]}]")
+                for index, text in enumerate(status_text):
+                    if st.session_state.status -1 == index:
+                        st.markdown(f":green[{text}]")
+                    else:
+                        st.markdown(f"{text}")
 
 rerander_status()
 
@@ -83,24 +55,10 @@ with col1:
                     st.session_state.searching = True
                     st.rerun()
                 st.session_state.status = 0
-                st.session_state.status += 1
-                rerander_status()
-                time.sleep(2)
-
-                st.session_state.status += 1
-                rerander_status()
-                time.sleep(2)
-
-                st.session_state.status += 1
-                rerander_status()
-                time.sleep(2)
-
-                st.session_state.status += 1
-                rerander_status()
-                time.sleep(2)
-
-                st.session_state.status += 1
-                rerander_status()
+                pipeline = MedicalService.run_rag_pipeline()
+                for next_status in pipeline:
+                    st.session_state.status = next_status
+                    rerander_status()
 
                 st.session_state.searching = False
                 st.rerun()
