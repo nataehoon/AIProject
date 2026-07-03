@@ -1,6 +1,7 @@
 from datasets import load_dataset
 from sentence_transformers import SentenceTransformer
 import numpy as np
+from config import DEFAULT_EMBEDDING_MODEL
 
 def get_qa_data():
     print("허깅페이스 서버에서 의학 데이터셋(QA) 다운로드를 시작합니다...")
@@ -25,7 +26,7 @@ def get_qa_data():
             print(f"[{index + 1}번 가공 데이터]: {combined_text[:200]}...")
 
     # 임베딩    
-    embedding_model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
+    embedding_model = SentenceTransformer(DEFAULT_EMBEDDING_MODEL)
 
     qa_combined = []
     for content in dataset:

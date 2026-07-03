@@ -38,14 +38,14 @@ def rerander_status():
             with st.container(height=one_row_height, border=True):
                 for index, text in enumerate(status_text):
                     if st.session_state.status -1 == index:
-                        st.markdown(f":green[{text}]")
+                        st.markdown(f":green[**{text}**]")
                     else:
                         st.markdown(f"{text}")
 
 rerander_status()
 
 with col1:
-    st.header("Searched Paper")
+    st.header("Searched HuggingFace Data")
     paper_placeholder = st.empty()
     with paper_placeholder:
         with st.container(height=one_row_height, border=True):

@@ -7,3 +7,5 @@ VLM_MODEL = "qwen3-vl:8b"
 LLM_NUM_PREDICT = 2048
 LLM_MODEL = "qwen3-vl:8b"
 DEFAULT_TEMPERATURE = 0.0
+
+DEFAULT_EMBEDDING_MODEL = "BM-K/KoSimCSE-roberta-multitask"
