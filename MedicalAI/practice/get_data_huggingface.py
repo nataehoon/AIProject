@@ -25,7 +25,7 @@ def get_qa_data():
             print(f"[{index + 1}번 가공 데이터]: {combined_text[:200]}...")
 
     # 임베딩    
-    embedding_model = SentenceTransformer("numind/NuMini-Embedding-v1")
+    embedding_model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
 
     qa_combined = []
     for content in dataset:
@@ -37,7 +37,7 @@ def get_qa_data():
     print("임베딩 모델에 전달")
 
     for index, text in enumerate(dataset):
-        v_data = np.array(qa_embeddings[index], dtype=float32).tolist()
+        v_data = np.array(qa_embeddings[index], dtype=np.float32).tolist()
         if index > 3:
             print(f"v_data: {v_data}")
             break

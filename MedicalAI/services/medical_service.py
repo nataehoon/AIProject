@@ -30,7 +30,7 @@ class MedicalService:
 
     @staticmethod
     def run_rag_pipeline():
-        embedding_model = SentenceTransformer("numind/NuMini-Embedding-v1")
+        embedding_model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
 
         qa_dataset = load_dataset("lavita/MedQuAD", split="train[:50]")
         yield 1
