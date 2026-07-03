@@ -1,4 +1,6 @@
 from datasets import load_dataset
+from sentence_transformers import SentenceTransformer
+import numpy as np
 
 def get_qa_data():
     print("허깅페이스 서버에서 의학 데이터셋(QA) 다운로드를 시작합니다...")
@@ -22,6 +24,24 @@ def get_qa_data():
         if index <3:
             print(f"[{index + 1}번 가공 데이터]: {combined_text[:200]}...")
 
+    # 임베딩    
+    embedding_model = SentenceTransformer("numind/NuMini-Embedding-v1")
+
+    qa_combined = []
+    for content in dataset:
+        combine_text = f"Medical Question: {content['question'].strip()}\nAnswer: {content['answer'].strip()}"
+        qa_combined.append(combine_text)
+
+    print("QA 데이터 가공 완료")
+    qa_embeddings = embedding_model.encode(qa_combined)
+    print("임베딩 모델에 전달")
+
+    for index, text in enumerate(dataset):
+        v_data = np.array(qa_embeddings[index], dtype=float32).tolist()
+        if index > 3:
+            print(f"v_data: {v_data}")
+            break
+    
 def get_paper_data():
     print("허깅페이스 서버에서 의학 데이터셋(Paper) 다운로드를 시작합니다...")
     dataset = load_dataset("ahmedabdelwahed/Medical_papers_title_and_abstract_NLP_dataset", split="train[:20]")
