@@ -30,7 +30,7 @@ def save_retry():
         save_result = MedicalService.save_my_mediinfo(my_medi=my_medi)
         result_text_container.empty()
         with result_text_container:
-            if save_result:
+            if save_result > 0:
                 st.success("성공적으로 분석 내용을 저장 하였습니다.")
             else:
                 st.error("분석 저장에 실패하였습니다. 다시 시도하시려면 아래 버튼을 눌러주세요.")

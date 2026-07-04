@@ -23,7 +23,7 @@ def execute_select_query(query: str, params: tuple = None):
 
             return cur.fetchall()
 
-def execute_non_query(query: str, params: tuple = None) -> bool:
+def execute_non_query(query: str, params: tuple = None) -> int:
     pool = init_connection_pool()
     with pool.connection() as conn:
         with conn.cursor() as cur:
@@ -35,10 +35,10 @@ def execute_non_query(query: str, params: tuple = None) -> bool:
 
                 conn.commit()
 
-                return True
+                return cur.rowcount
             except Exception as e:
                 print(f"[non_query 실패]: {e}")
-                return False
+                return cur.rowcount
 
 def execute_transaction_query(queries_params: List[Tuple[str, tuple]]) -> bool:
     pool = init_connection_pool()

@@ -1,5 +1,5 @@
 from modules.db_repository import execute_select_query, execute_non_query, execute_transaction_query
-from models.mediinfo import Mediinfo
+from models.mediinfo import Mediinfo, VersionInfo, QA_RawData, Paper_RawData
 from datetime import datetime
 from dotenv import load_dotenv
 from sentence_transformers import SentenceTransformer
@@ -28,6 +28,62 @@ class MedicalService:
         params = (my_medi.member_id, my_medi.modality, my_medi.file_name, my_medi.analyzed_text)
 
         return execute_non_query(query, params)
+
+    @staticmethod
+    def get_version_info() -> list["VersionInfo"] | None:
+        query = "SELECT * FROM prod_version_info"
+
+        raw_rows = execute_select_query(query)
+
+        if not raw_rows:
+            return None
+
+        return [VersionInfo(**row) for row in raw_rows]
+
+    @staticmethod
+    def get_raw_data() -> tuple[list[QA_RawData], list[Paper_RawData]] | None:
+        query = "SELECT * FROM medical_qa_knowledge_staging;"
+        qa_raw_rows = execute_select_query(query)
+        if qa_raw_rows:
+            qa_raw_list = [QA_RawData(**row) for row in qa_raw_rows]
+        else:
+            qa_raw_list = []
+
+        query = "SELECT * FROM medical_paper_chunks_staging;"
+        paper_raw_rows = execute_select_query(query)
+        if paper_raw_rows:
+            paper_raw_list = [Paper_RawData(**row) for row in paper_raw_rows]
+        else:
+            paper_raw_list = []
+
+        return (qa_raw_list, paper_raw_list)
+
+    @staticmethod
+    def save_version_select(version: str):
+        query = "INSERT INTO prod_version_info(version, active) VALUES(%s, %s) ON CONFLICT (version) DO UPDATE SET active = EXCLUDED.active"
+        params = (version, True)
+
+        result = execute_non_query(query, params)
+
+        if result > 0:
+            query = "UPDATE prod_version_info SET active = %s WHERE version != %s"
+            params = (False, version)
+
+            execute_non_query(query, params)
+
+            query = "INSERT INTO medical_qa_knowledge_prod(question, answer, combined_content, specialty, embedding, create_at, version_id) " \
+            "SELECT question, answer, combined_content, specialty, embedding, CURRENT_TIMESTAMP as create_at, (SELECT id FROM prod_version_info WHERE version = %s" \
+                    ") as version_id from medical_qa_knowledge_staging WHERE version = %s"
+            params = (version, version)
+
+            execute_non_query(query, params)
+
+            query = "INSERT INTO medical_paper_chunks_prod(document_name, page_number, chunk_index, chunk_content, embedding, create_at, version_id) " \
+            "SELECT document_name, page_number, chunk_index, chunk_content, embedding, CURRENT_TIMESTAMP as create_at, (SELECT id FROM prod_version_info WHERE version = %s" \
+                    ") as version_id from medical_paper_chunks_staging WHERE version = %s"
+            params = (version, version)
+            
+            execute_non_query(query, params)
 
     @staticmethod
     def run_rag_pipeline():
@@ -93,7 +149,7 @@ class MedicalService:
             paper_params = (item["title"], 1, index, item["content"], v_data, now)
             paper_queries_and_params.append((paper_query, paper_params))
 
-        paper_fifo_query = "DELETE FROM medical_paper_chunks_staging WHERE version NOT IN (SELECT version FROM (SELECT version FROM medical_paper_chunks_staging ORDER BY version DESC LIMIT 3) AS tmp);"
+        paper_fifo_query = "DELETE FROM medical_paper_chunks_staging WHERE version NOT IN (SELECT version FROM (SELECT DISTINCT version FROM medical_paper_chunks_staging ORDER BY version DESC LIMIT 3) AS tmp);"
         paper_queries_and_params.append((paper_fifo_query, ()))
 
         execute_transaction_query(paper_queries_and_params)

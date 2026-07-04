@@ -18,8 +18,8 @@ if not "logged_in" in st.session_state:
     st.session_state.logged_in = False
 
 login_page = st.Page("view/login.py", title="로그인", icon="🔒", default=True)
-chat_page = st.Page("view/chat.py", title="채팅", icon="💬", default=True) #🤖🧑‍⚕️
-lobby_page = st.Page("view/lobby.py", title="대시보드", icon="🧬")
+chat_page = st.Page("view/chat.py", title="채팅", icon="💬") #🤖🧑‍⚕️
+lobby_page = st.Page("view/lobby.py", title="대시보드", icon="🧬", default=True)
 file_research_page = st.Page("view/MRI_Parsing.py", title="파일 분석", icon="🔍")
 
 if st.session_state.logged_in:
