@@ -25,20 +25,20 @@ status_text = [
     "7. RAG시스템 준비 완료!"
 ]
 
-
+raw_data_list = MedicalService.get_raw_data()
+qa_list, paper_list = raw_data_list
+version = [qa for qa in dict.fromkeys(qa.version for qa in qa_list)]
 
 @st.dialog("수집 데이터", width="large")
 def raw_data_info():
     if "selected_version" not in st.session_state:
         st.session_state.selected_version = ""
     with st.container(width=1200, height=650):
-        raw_data_list = MedicalService.get_raw_data()
-        qa_list, paper_list = raw_data_list
         col1, col2 = st.columns([1,5])
         details = []
         with col1:
             st.title("QA")
-            for qa in set(qa.version for qa in qa_list):
+            for qa in version:
                 if st.button(f"{qa}"):
                     st.session_state.selected_version = qa
                     details = []
@@ -47,7 +47,7 @@ def raw_data_info():
                         details.append("".join(f"질문: {content.question}\n답변: {content.answer}"))
 
             st.title("Paper")
-            for index, paper in enumerate(set(paper.version for paper in paper_list)):
+            for index, paper in enumerate(version):
                 if st.button(f"{paper}", key=f"{index}"):
                     st.session_state.selected_version = paper
                     details = []
@@ -139,3 +139,15 @@ with col1:
             with btn_col2:
                 if st.button("ℹ️", key="raw_data_info", disabled=st.session_state.searching):
                     raw_data_info()
+
+            st.markdown("##### 동기화 데이터")
+            data_col1, data_col2, data_col3 = st.columns(3)
+            with data_col1:
+                if len(version) > 0 and version[0]:
+                    st.markdown(f"* {version[0]}")
+            with data_col2:
+                if len(version) > 1 and version[1]:
+                    st.markdown(f"* {version[1]}")
+            with data_col3:
+                if len(version) > 2 and version[2]:
+                    st.markdown(f"* {version[2]}")

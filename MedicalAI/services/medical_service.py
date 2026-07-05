@@ -42,14 +42,14 @@ class MedicalService:
 
     @staticmethod
     def get_raw_data() -> tuple[list[QA_RawData], list[Paper_RawData]] | None:
-        query = "SELECT * FROM medical_qa_knowledge_staging;"
+        query = "SELECT * FROM medical_qa_knowledge_staging ORDER BY CAST(version AS DATE) DESC;"
         qa_raw_rows = execute_select_query(query)
         if qa_raw_rows:
             qa_raw_list = [QA_RawData(**row) for row in qa_raw_rows]
         else:
             qa_raw_list = []
 
-        query = "SELECT * FROM medical_paper_chunks_staging;"
+        query = "SELECT * FROM medical_paper_chunks_staging ORDER BY CAST(version AS DATE) DESC;"
         paper_raw_rows = execute_select_query(query)
         if paper_raw_rows:
             paper_raw_list = [Paper_RawData(**row) for row in paper_raw_rows]
