@@ -2,10 +2,11 @@ from modules.db_repository import execute_select_query, execute_non_query, execu
 from models.mediinfo import Mediinfo, VersionInfo, QA_RawData, Paper_RawData
 from datetime import datetime
 from dotenv import load_dotenv
+from modules.sentence_transformer import get_vector_data
 from sentence_transformers import SentenceTransformer
 from datasets import load_dataset
 import numpy as np
-from config import DEFAULT_EMBEDDING_MODEL
+from config import DEFAULT_EMBEDDING_MODEL, QA_DATASET_MODEL, PAPER_DATASET_MODEL
 
 load_dotenv()
 
@@ -88,9 +89,7 @@ class MedicalService:
     @staticmethod
     def run_rag_pipeline():
         yield 1
-        embedding_model = SentenceTransformer(DEFAULT_EMBEDDING_MODEL)
-
-        qa_dataset = load_dataset("lavita/MedQuAD", split="train[:50]")
+        qa_dataset = load_dataset(QA_DATASET_MODEL, split="train[:50]")
 
         yield 2
         qa_texts = []
@@ -98,7 +97,7 @@ class MedicalService:
             combined = f"Medical Question: {row['question'].strip()}\nExpert Answer: {row['answer'].strip()}"
             qa_texts.append(combined)
 
-        qa_embeddings = embedding_model.encode(qa_texts)
+        qa_v_list = get_vector_data(qa_texts)
 
         yield 3
         now = datetime.now().strftime("%Y-%m-%d")
@@ -108,10 +107,8 @@ class MedicalService:
         qa_queries_and_params.append((cleanup_query, cleanup_params))
 
         qa_query = "INSERT INTO medical_qa_knowledge_staging(question, answer, combined_content, specialty, embedding, version) VALUES(%s, %s, %s, %s, %s, %s);"
-        qa_params = []
         for index, row in enumerate(qa_dataset):
-            v_data = np.array(qa_embeddings[index], dtype=np.float32).tolist()
-            qa_param = (row['question'], row['answer'], qa_texts[index], "General", v_data, now)
+            qa_param = (row['question'], row['answer'], qa_texts[index], "General", qa_v_list[index], now)
             qa_queries_and_params.append((qa_query, qa_param))
 
         qa_fifo_query = "DELETE FROM medical_qa_knowledge_staging WHERE version NOT IN (SELECT version FROM (SELECT DISTINCT version FROM medical_qa_knowledge_staging ORDER BY version DESC LIMIT 3) AS tmp);"
@@ -120,14 +117,13 @@ class MedicalService:
         execute_transaction_query(qa_queries_and_params)
 
         yield 4
-        paper_dataset = load_dataset("ahmedabdelwahed/Medical_papers_title_and_abstract_NLP_dataset", split="train[:50]")
+        paper_dataset = load_dataset(PAPER_DATASET_MODEL, split="train[:50]")
 
         yield 5
         paper_chunks_data = []
-        for idx, paper in enumerate(paper_dataset):
+        for paper in paper_dataset:
             title = paper["title"]
             abstract = paper["abstract"]
-
 
             chunk_size = 1000
             for start_idx in range(0, len(abstract), chunk_size):
@@ -135,7 +131,7 @@ class MedicalService:
                 paper_chunks_data.append({"title": title, "content": chunk_str})
 
         chunk_texts = [item["content"] for item in paper_chunks_data]
-        paper_embeddings = embedding_model.encode(chunk_texts)
+        paper_v_list = get_vector_data(chunk_texts)
 
         yield 6
         paper_queries_and_params = []
@@ -145,8 +141,7 @@ class MedicalService:
 
         paper_query = "INSERT INTO medical_paper_chunks_staging(document_name, page_number, chunk_index, chunk_content, embedding, version) VALUES(%s, %s, %s, %s, %s, %s);"
         for index, item in enumerate(paper_chunks_data):
-            v_data = np.array(paper_embeddings[index], dtype=np.float32).tolist()
-            paper_params = (item["title"], 1, index, item["content"], v_data, now)
+            paper_params = (item["title"], 1, index, item["content"], paper_v_list[index], now)
             paper_queries_and_params.append((paper_query, paper_params))
 
         paper_fifo_query = "DELETE FROM medical_paper_chunks_staging WHERE version NOT IN (SELECT version FROM (SELECT DISTINCT version FROM medical_paper_chunks_staging ORDER BY version DESC LIMIT 3) AS tmp);"

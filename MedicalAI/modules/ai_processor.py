@@ -6,11 +6,14 @@ import json
 from config import VLM_MODEL, LLM_MODEL, OLLAMA_VLM_API_URL, OLLAMA_LLM_API_URL, VLM_NUM_PREDICT, LLM_NUM_PREDICT
 from models.ai_payload import OllamaPayload
 from typing import List, Dict
+from modules.sentence_transformer import get_vector_data
 
 def query_vector_db(query_text: str) -> str:
-    query_vector = embedding_model.embed_query(query_text)
-    docs = vector_store.similarity_search_by_vector(query_vector, k=2)
-    return "\n".join([d.page_content for d in docs])
+    raw_data = []
+    raw_data.append(query_text)
+
+    v_list = get_vector_data(raw_data)
+    return v_list[0]
 
 def run_llm_generator(chatMessage: List[Dict[str, str]]):
     llm_payload = OllamaPayload(
