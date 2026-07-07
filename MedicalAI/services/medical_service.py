@@ -1,14 +1,9 @@
 from modules.db_repository import execute_select_query, execute_non_query, execute_transaction_query
 from models.mediinfo import Mediinfo, VersionInfo, QA_RawData, Paper_RawData
 from datetime import datetime
-from dotenv import load_dotenv
 from modules.sentence_transformer import get_vector_data
-from sentence_transformers import SentenceTransformer
 from datasets import load_dataset
-import numpy as np
-from config import DEFAULT_EMBEDDING_MODEL, QA_DATASET_MODEL, PAPER_DATASET_MODEL
-
-load_dotenv()
+from config import QA_DATASET_MODEL, PAPER_DATASET_MODEL
 
 class MedicalService:
     @staticmethod

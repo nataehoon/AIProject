@@ -7,13 +7,16 @@ from config import VLM_MODEL, LLM_MODEL, OLLAMA_VLM_API_URL, OLLAMA_LLM_API_URL,
 from models.ai_payload import OllamaPayload
 from typing import List, Dict
 from modules.sentence_transformer import get_vector_data
+from services.rag_service import RAGService
 
 def query_vector_db(query_text: str) -> str:
     raw_data = []
     raw_data.append(query_text)
 
     v_list = get_vector_data(raw_data)
-    return v_list[0]
+    v_data = v_list[0]
+
+    return RAGService.get_rag_data(v_data)
 
 def run_llm_generator(chatMessage: List[Dict[str, str]]):
     llm_payload = OllamaPayload(
@@ -81,7 +84,7 @@ def run_vlm_inference_generator(patient_info):
                     print(f"[{target_modality}] 슬라이스 {safe_idx}번 데이터 유효성 실효: 스칼라 타입이 발견되어 스킵합니다.")
                     continue
 
-                plt.figure(figsize=[5, 5])
+                plt.figure(figsize=[3, 3])
                 plt.imshow(matrix_np, cmap=plt.cm.bone)
                 plt.axis('off')
 
@@ -128,8 +131,9 @@ def run_vlm_inference_generator(patient_info):
         vlm_response = requests.post(OLLAMA_VLM_API_URL, json=llm_payload, stream=False, timeout=300)
         vlm_response.raise_for_status()
 
+        print(f"vlm_response: {vlm_response.text}")
         vlm_result_json = vlm_response.json()
-        vlm_text = vlm_result_json.get("choices", [{}])[0].get("delta", {}).get("content", "")
+        vlm_text = vlm_result_json.get("choices", [{}])[0].get("message", {}).get("content", "")
 
         if not vlm_text:
             vlm_draft_text = vlm_result_json.get("message", {}).get("content", "")

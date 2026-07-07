@@ -1,6 +1,4 @@
-from dotenv import load_dotenv
 from sentence_transformers import SentenceTransformer
-from datasets import load_dataset
 import numpy as np
 from config import DEFAULT_EMBEDDING_MODEL
 

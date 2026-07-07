@@ -74,17 +74,18 @@ if uploaded_file is not None:
                 result_success = False
 
                 vlm_stream = run_vlm_inference_generator(dicom_result)
-                
-                for result_chunk in vlm_stream:
+
+                with st.status("🔍 AI 하이브리드 판독 엔진 구동 중...", expanded=True) as status:
                     result_text_container.empty()
-                    with result_text_container:
+                    for result_chunk in vlm_stream:
                         if isinstance(result_chunk, dict):
-                            status_text = result_chunk["status"]
+                            status_text = result_chunk.get("status", "처리 중...")
+                            st.write(status_text)
                         else:
                             my_medi.analyzed_text = result_chunk
                             print(my_medi.model_dump())
                             save_result = MedicalService.save_my_mediinfo(my_medi=my_medi)
-                            st.success("성공적으로 분석 내용을 저장 하였습니다.")
+                            st.write("성공적으로 분석 내용을 저장 하였습니다.")
                             break
 
 

@@ -118,8 +118,8 @@ with col1:
                         st.text(f"{active_version.version}")
                         for no_active in no_active_version:
                             st.text(f"{no_active.version}")
-
             st.markdown("---")
+
             btn_col1, btn_col2 = st.columns([9,1])
             with btn_col1:
                 search = st.button("🔍 데이터 동기화", disabled=st.session_state.searching)
