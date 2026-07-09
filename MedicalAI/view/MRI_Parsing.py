@@ -85,7 +85,8 @@ if uploaded_file is not None:
                             my_medi.analyzed_text = result_chunk
                             print(my_medi.model_dump())
                             save_result = MedicalService.save_my_mediinfo(my_medi=my_medi)
-                            st.write("성공적으로 분석 내용을 저장 하였습니다.")
+                            if save_result:
+                                st.write("성공적으로 분석 내용을 저장 하였습니다.")
                             break
 
 

@@ -4,13 +4,13 @@
   "settings": {
     "width": 2000,
     "height": 2000,
-    "scrollTop": -400,
+    "scrollTop": 0,
     "scrollLeft": 0,
     "zoomLevel": 1,
     "show": 510,
     "database": 16,
     "databaseName": "",
-    "canvasType": "ERD",
+    "canvasType": "@dineug/erd-editor/builtin-schema-sql",
     "language": 1,
     "tableNameCase": 4,
     "columnNameCase": 2,
@@ -1697,62 +1697,6 @@
           "createAt": 1782529548545
         }
       },
-      "gtxDi6xg6lrXnjUgJlwYJ": {
-        "id": "gtxDi6xg6lrXnjUgJlwYJ",
-        "identification": false,
-        "relationshipType": 4,
-        "startRelationshipType": 2,
-        "start": {
-          "tableId": "knsWkSIvIKe6t2m4numCJ",
-          "columnIds": [
-            "Y6t7N79GekQsf9XSBiOLD"
-          ],
-          "x": 1264,
-          "y": 658,
-          "direction": 1
-        },
-        "end": {
-          "tableId": "HRme6-7poOSMzHVYMs2Ud",
-          "columnIds": [
-            "oYciGXQDi9WY6fUDryMFs"
-          ],
-          "x": 1101,
-          "y": 613,
-          "direction": 2
-        },
-        "meta": {
-          "updateAt": 1783148479229,
-          "createAt": 1783148479229
-        }
-      },
-      "1ERHj4QlduhEXXRJ3t-GE": {
-        "id": "1ERHj4QlduhEXXRJ3t-GE",
-        "identification": false,
-        "relationshipType": 4,
-        "startRelationshipType": 2,
-        "start": {
-          "tableId": "knsWkSIvIKe6t2m4numCJ",
-          "columnIds": [
-            "Y6t7N79GekQsf9XSBiOLD"
-          ],
-          "x": 1264,
-          "y": 734,
-          "direction": 1
-        },
-        "end": {
-          "tableId": "mtaAFfgl5m1RvPUWN94ja",
-          "columnIds": [
-            "Qn6WefLUicJW-NhI3ezjY"
-          ],
-          "x": 1081,
-          "y": 887,
-          "direction": 2
-        },
-        "meta": {
-          "updateAt": 1783148592515,
-          "createAt": 1783148592515
-        }
-      },
       "hBCFyvvxfb99QBFBknuxH": {
         "id": "hBCFyvvxfb99QBFBknuxH",
         "identification": false,
@@ -1808,34 +1752,6 @@
           "updateAt": 1783148615261,
           "createAt": 1783148615261
         }
-      },
-      "KNRr_hMqEZeLlfmAICm1x": {
-        "id": "KNRr_hMqEZeLlfmAICm1x",
-        "identification": false,
-        "relationshipType": 16,
-        "startRelationshipType": 2,
-        "start": {
-          "tableId": "knsWkSIvIKe6t2m4numCJ",
-          "columnIds": [
-            "SD0R9f3dXTXEnksWukSjt"
-          ],
-          "x": 1261,
-          "y": 743.9999999999999,
-          "direction": 1
-        },
-        "end": {
-          "tableId": "HRme6-7poOSMzHVYMs2Ud",
-          "columnIds": [
-            "jKom8bmsDbVxvEuS6D0XJ"
-          ],
-          "x": 1101,
-          "y": 693,
-          "direction": 2
-        },
-        "meta": {
-          "updateAt": 1783168650192,
-          "createAt": 1783168650192
-        }
       }
     },
     "indexEntities": {
@@ -1865,9 +1781,9 @@
         "seqIndexColumnIds": [
           "YBtai6-F0omTbx5ndnvIC"
         ],
-        "unique": true,
+        "unique": false,
         "meta": {
-          "updateAt": 1782530686922,
+          "updateAt": 1783604925431,
           "createAt": 1782530669526
         }
       },

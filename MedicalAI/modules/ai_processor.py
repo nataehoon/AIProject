@@ -3,7 +3,7 @@ import base64
 import io
 import requests
 import json
-from config import VLM_MODEL, LLM_MODEL, OLLAMA_VLM_API_URL, OLLAMA_LLM_API_URL, VLM_NUM_PREDICT, LLM_NUM_PREDICT
+from config import VLM_MODEL, LLM_MODEL, OLLAMA_VLM_API_URL, OLLAMA_LLM_API_URL, VLM_NUM_PREDICT, LLM_NUM_PREDICT, VLM_NUM_CTX, LLM_NUM_CTX
 from models.ai_payload import OllamaPayload
 from typing import List, Dict
 from modules.sentence_transformer import get_vector_data
@@ -84,7 +84,7 @@ def run_vlm_inference_generator(patient_info):
                     print(f"[{target_modality}] 슬라이스 {safe_idx}번 데이터 유효성 실효: 스칼라 타입이 발견되어 스킵합니다.")
                     continue
 
-                plt.figure(figsize=[3, 3])
+                plt.figure(figsize=[5, 5])
                 plt.imshow(matrix_np, cmap=plt.cm.bone)
                 plt.axis('off')
 
@@ -97,9 +97,9 @@ def run_vlm_inference_generator(patient_info):
                 images_payload_array.append(base64_encoded)
 
                 if target_modality == "CR":
-                    description += "일반 엑스레이 (CR) 전경 영상입니다. 전체적인 골격 정렬 및 탈구 소견을 판독하세요."
+                    description += "This is a general X-ray (CR) view. Please evaluate the overall skeletal alignment and check for signs of dislocation."
                 elif target_modality == "MR":
-                    description += f"자기공명영상 (MRI) 단면 볼륨 중 ({slice_idx}/{total_slices}) 정밀 단면 레이어 입니다. 회전근개 힘줄 상태를 교차 분석 하세요."
+                    description += f"This is a specific cross-sectional layer ({slice_idx}/{total_slices}) from the MRI volume. Please cross-analyze the condition of the rotator cuff tendons."
             except Exception as e:
                 print(f"[target_modality] 슬라이스 {slice_idx} 랜더링 예외 발생: {e}")
                 if 'plt' in locals() or 'plt' in globals():
@@ -124,56 +124,90 @@ def run_vlm_inference_generator(patient_info):
                 }
             ],
             "temperature": 0.0,
-            "options": {"num_predict": VLM_NUM_PREDICT}
+            "options": {"num_predict": VLM_NUM_PREDICT, "num_ctx": VLM_NUM_CTX}
         }
 
         yield {"status": "파일 전처리를 완료하여 AI(VLM)에게 전송합니다..."}
-        vlm_response = requests.post(OLLAMA_VLM_API_URL, json=llm_payload, stream=False, timeout=300)
+        vlm_response = requests.post(OLLAMA_VLM_API_URL, json=llm_payload, stream=True, timeout=300)
         vlm_response.raise_for_status()
 
-        print(f"vlm_response: {vlm_response.text}")
-        vlm_result_json = vlm_response.json()
-        vlm_text = vlm_result_json.get("choices", [{}])[0].get("message", {}).get("content", "")
+        vlm_text = ""
+        reasoning = ""
+        for chunk in vlm_response.iter_lines():
+            if chunk:
+                decoded_line = chunk.decode('utf-8').strip()
+
+                if decoded_line.startswith("data:"):
+                    data_content = decoded_line[5:].strip()
+                    print(data_content)
+
+                    if data_content == "[DONE]":
+                        break
+
+                    try:
+                        chunk_json = json.loads(data_content)
+                        vlm_text += chunk_json.get("choices", [{}])[0].get("delta", {}).get("content", "")
+                        reasoning += chunk_json.get("choices", [{}])[0].get("delta", {}).get("reasoning", "")
+                            
+                    except Exception as e:
+                        print(f"[스트림 파싱 예외 발생]: {e}")
 
         if not vlm_text:
-            vlm_draft_text = vlm_result_json.get("message", {}).get("content", "")
+            yield {"status": f"vlm_text데이터 추출 실패: {reasoning}"}
+        else:
+            yield {"status": f"vlm_text: {vlm_text[:100]}"}
+            yield {"status": "AI에게 받은 데이터를 RAG를 사용하여 재검증 합니다..."}
+            retrieved_knowledge = query_vector_db(vlm_text)
 
-        yield {"status": "AI에게 받은 데이터를 RAG를 사용하여 재검증 합니다..."}
-        retrieved_knowledge = query_vector_db(vlm_text)
+            yield {"status": "RAG검증을 완료 하였습니다. AI(LLM)에게 전송합니다..."}
+            verification_prompt = (
+                "You are a Senior Radiologist and a Medical Report Validation AI.\n"
+                "Thoroughly verify and correct the provided [VLM Draft Interpretation] to ensure it perfectly aligns with the given [Medical Guideline Reference Standard].\n\n"
+                "[Medical Guideline Reference Standard]\n"
+                f"{retrieved_knowledge}\n\n"
+                "[Patient Metadata]\n"
+                f"- Patient Name: {patient_info['patient_name']} | ID: {patient_info['patient_id']}\n\n"
+                "[VLM Draft Interpretation]\n"
+                f"{vlm_text}\n\n"
+                "[Action Guidelines]\n"
+                "1. If the draft deviates from the reference standard, contains medical distortions (hallucinations), or shows logical contradictions, correct them strictly based on the reference standard.\n"
+                "2. Filter out any fictional disease names or diagnoses not explicitly stated in the reference standard that are based on excessive speculation.\n"
+                "3. The final output must be formatted as a structured 'Final Comprehensive Medical Report' including the patient metadata.\n"
+                "4. Exclude all validation processes, justifications, or introductory remarks. Output ONLY the body of the 'Final Medical Report'."
+                )
 
-        yield {"status": "RAG검증을 완료 하였습니다. AI(LLM)에게 전송합니다..."}
-        verification_prompt = (
-            "You are a Senior Radiologist and a Medical Report Validation AI.\n"
-            "Thoroughly verify and correct the provided [VLM Draft Interpretation] to ensure it perfectly aligns with the given [Medical Guideline Reference Standard].\n\n"
-            "[Medical Guideline Reference Standard]\n"
-            f"{retrieved_knowledge}\n\n"
-            "[Patient Metadata]\n"
-            f"- Patient Name: {patient_info['patient_name']} | ID: {patient_info['patient_id']}\n\n"
-            "[VLM Draft Interpretation]\n"
-            f"{vlm_draft_text}\n\n"
-            "[Action Guidelines]\n"
-            "1. If the draft deviates from the reference standard, contains medical distortions (hallucinations), or shows logical contradictions, correct them strictly based on the reference standard.\n"
-            "2. Filter out any fictional disease names or diagnoses not explicitly stated in the reference standard that are based on excessive speculation.\n"
-            "3. The final output must be formatted as a structured 'Final Comprehensive Medical Report' including the patient metadata.\n"
-            "4. Exclude all validation processes, justifications, or introductory remarks. Output ONLY the body of the 'Final Medical Report'."
-            )
+            chatMessage = [{"role": "user", "content": verification_prompt}]
 
-        chatMessage = [{"role": "user", "content": verification_prompt}]
+            llm_payload = OllamaPayload(
+                    model=LLM_MODEL,
+                    messages=chatMessage,
+                    temperature=0.0,
+                    options={"num_predict": LLM_NUM_PREDICT, "num_ctx": LLM_NUM_CTX}
+                ).model_dump()
 
-        llm_payload = OllamaPayload(
-                model=LLM_MODEL,
-                messages=chatMessage,
-                temperature=0.0,
-                options={"num_predict": LLM_NUM_PREDICT}
-            ).model_dump()
+            response = requests.post(OLLAMA_LLM_API_URL, json=llm_payload, stream=True, timeout=300)
+            response.raise_for_status()
 
-        response = requests.post(OLLAMA_LLM_API_URL, json=llm_payload, stream=False, timeout=300)
-        response.raise_for_status()
+            result_text = ""
+            for llm_chunk in response.iter_lines():
+                if llm_chunk:
+                    llm_decoded_line = llm_chunk.decode('utf-8').strip()
 
-        result_json = response.json()
-        result_text = result_json.get("choices", [{}])[0].get("message", {}).get("content", "")
+                    if llm_decoded_line.startswith("data:"):
+                        llm_data_content = llm_decoded_line[5:].strip()
 
-        yield result_text
+                        if llm_data_content == "[DONE]":
+                            break
+
+                        try:
+                            llm_chunk_json = json.loads(llm_data_content)
+                            result_text += llm_chunk_json.get("choices", [{}])[0].get("delta", {}).get("content", "")
+
+                        except Exception as e:
+                            print(f"[스트림 파싱 예외 발생]: {e}")
+
+            yield {"status": f"{result_text[:100]}"}
+            yield result_text
         # reasoning_text = ""
         # finish_text = ""
         # for index, chunk in enumerate(response.iter_lines()):
