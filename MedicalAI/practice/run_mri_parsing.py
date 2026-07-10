@@ -21,7 +21,7 @@ print("==================================================")
 print("1단계: DICOM 디렉터리 순회 및 생 메모리 적재 개시")
 print("==================================================")
 
-dicomdir_path = "./rawData/MRI(강선애, F70)/DICOMDIR"
+dicomdir_path = "./rawData/MRI/DICOMDIR"
 
 if not os.path.exists(dicomdir_path):
     print(f"에러: 해당 경로에 DICOMDIR 파일이 없습니다: {dicomdir_path}")

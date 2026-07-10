@@ -11,12 +11,17 @@ st.set_page_config(
  
 if "global_chat_history" not in st.session_state:
     st.session_state.global_chat_history = []
-    my_medi = MedicalService.get_my_mediinfo(1)
-    print(my_medi.model_dump())
-    st.session_state.global_chat_history.append({
-        "role": "system",
-        "content": f"당신은 의료 전공의 수준의 지식을 갖고있는 상담사 입니다. 질문자에게 최대한 이해하기 쉽게 자세하게 설명해 주세요 \n{my_medi.analyzed_text}"
-    })
+    my_medi = MedicalService.get_my_mediinfo(st.session_state.user_profile.id)
+    if my_medi:
+        file_list_data = ""
+        for medi_data in my_medi:
+            file_list_data = f"[파일 이름]: {medi_data.file_name}\n[분석 내용]: {medi_data.analyzed_text}\n\n"
+
+        print(file_list_data)
+        st.session_state.global_chat_history.append({
+            "role": "system",
+            "content": f"당신은 의료 전공의 수준의 지식을 갖고있는 상담사 입니다. 질문자에게 최대한 이해하기 쉽게 자세하게 설명해 주세요 \n{file_list_data}"
+        })
 
     st.session_state.global_chat_history.append({
         "role": "assistant",

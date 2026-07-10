@@ -155,7 +155,6 @@ def run_vlm_inference_generator(patient_info):
         if not vlm_text:
             yield {"status": f"vlm_text데이터 추출 실패: {reasoning}"}
         else:
-            yield {"status": f"vlm_text: {vlm_text[:100]}"}
             yield {"status": "AI에게 받은 데이터를 RAG를 사용하여 재검증 합니다..."}
             retrieved_knowledge = query_vector_db(vlm_text)
 
@@ -206,7 +205,6 @@ def run_vlm_inference_generator(patient_info):
                         except Exception as e:
                             print(f"[스트림 파싱 예외 발생]: {e}")
 
-            yield {"status": f"{result_text[:100]}"}
             yield result_text
         # reasoning_text = ""
         # finish_text = ""

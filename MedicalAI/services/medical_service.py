@@ -7,8 +7,8 @@ from config import QA_DATASET_MODEL, PAPER_DATASET_MODEL
 
 class MedicalService:
     @staticmethod
-    def get_my_mediinfo(id: int) -> Mediinfo | None:
-        qeury = "SELECT * FROM mediinfo WHERE id=%s"
+    def get_my_mediinfo(id: int) -> list["Mediinfo"] | None:
+        qeury = "SELECT * FROM mediinfo WHERE member_id=%s"
         params = (id,)
 
         raw_rows = execute_select_query(query=qeury, params=params)
@@ -16,7 +16,7 @@ class MedicalService:
         if not raw_rows:
             return None
 
-        return Mediinfo(**raw_rows[0])
+        return [Mediinfo(**row) for row in raw_rows]
 
     @staticmethod
     def save_my_mediinfo(my_medi: Mediinfo) -> bool | None:

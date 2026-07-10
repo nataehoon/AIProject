@@ -48,13 +48,15 @@ def save_retry():
                 save_retry()
 
 if uploaded_file is not None:
-    my_medi_info = MedicalService.get_my_mediinfo(1)
+    my_medi_info = MedicalService.get_my_mediinfo(st.session_state.user_profile.id)
 
-    if uploaded_file.name == my_medi_info.file_name:
-        already_uploaded_file()
+    if my_medi_info:
+        for medi_data in my_medi_info:
+            if uploaded_file.name == medi_data.file_name:
+                already_uploaded_file()
 
     if not st.session_state.retry:
-            my_medi.member_id = 1
+            my_medi.member_id = st.session_state.user_profile.id
             my_medi.file_name = uploaded_file.name
             with st.spinner("DICOM 파일을 읽고 있습니다..."):
                 dicom_result = process_dicom_zip(uploaded_file)
