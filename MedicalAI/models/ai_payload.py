@@ -5,4 +5,6 @@ class OllamaPayload(BaseModel):
     model: str
     messages: List[Dict[str, str]]
     temperature: float
+    think: bool
+    stream: bool
     options: Dict[str, Any] = {}

@@ -1,5 +1,5 @@
 import streamlit as st
-from modules import ai_processor
+from services.chat_service import ChatService
 from services.medical_service import MedicalService
 from models.mediinfo import Mediinfo
 
@@ -11,18 +11,6 @@ st.set_page_config(
  
 if "global_chat_history" not in st.session_state:
     st.session_state.global_chat_history = []
-    my_medi = MedicalService.get_my_mediinfo(st.session_state.user_profile.id)
-    if my_medi:
-        file_list_data = ""
-        for medi_data in my_medi:
-            file_list_data = f"[파일 이름]: {medi_data.file_name}\n[분석 내용]: {medi_data.analyzed_text}\n\n"
-
-        print(file_list_data)
-        st.session_state.global_chat_history.append({
-            "role": "system",
-            "content": f"당신은 의료 전공의 수준의 지식을 갖고있는 상담사 입니다. 질문자에게 최대한 이해하기 쉽게 자세하게 설명해 주세요 \n{file_list_data}"
-        })
-
     st.session_state.global_chat_history.append({
         "role": "assistant",
         "content": f"안녕하세요, {st.session_state.user_profile.name}님 어떤 의료 데이터를 함께 검토해 드릴까요?"
@@ -83,19 +71,19 @@ if user_query := st.chat_input("의료 질문을 입력하세요.", disabled=st.
     with chat_viewport:
         with st.chat_message("assistant"):
             response_placeholder = st.empty()
-
-            with response_placeholder.spinner("AI의 답변을 기다리는 중입니다."):
-                ai_response = ai_processor.run_llm_generator(st.session_state.global_chat_history)
-
-                response_placeholder.empty()
+            ai_response = ChatService.send_rout(st.session_state.global_chat_history, st.session_state.user_profile.id)
+            with st.status("🔍 AI의 답변을 기다리는 중입니다...", expanded=True) as status:
                 final_report = ""
                 for text_chunk in ai_response:
-                    final_report += text_chunk
-                    response_placeholder.markdown(final_report + "▌")
+                    if isinstance(text_chunk, dict):
+                        status_text = text_chunk.get("status", "처리 중...")
+                        st.write(status_text)
+                    else:
+                        final_report += text_chunk
+                        response_placeholder.markdown(final_report + "▌")
 
-                    if final_report:
-                        # 최종 확정본 렌더링 (우측의 깜빡이는 커서 ▌ 제거 완료 버전)
-                        response_placeholder.markdown(final_report)
+                if final_report:
+                    response_placeholder.markdown(final_report)
 
     st.session_state.global_chat_history.append({"role": "assistant", "content": final_report})
     st.session_state.is_processing = False

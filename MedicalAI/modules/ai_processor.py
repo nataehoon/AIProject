@@ -3,7 +3,7 @@ import base64
 import io
 import requests
 import json
-from config import VLM_MODEL, LLM_MODEL, OLLAMA_VLM_API_URL, OLLAMA_LLM_API_URL, VLM_NUM_PREDICT, LLM_NUM_PREDICT, VLM_NUM_CTX, LLM_NUM_CTX
+from config import VLM_MODEL, LLM_MODEL, OLLAMA_VLM_API_URL, OLLAMA_LLM_API_URL, VLM_NUM_PREDICT, LLM_NUM_PREDICT, VLM_NUM_CTX, LLM_NUM_CTX, VLM_THINK, LLM_THINK, DEFAULT_TEMPERATURE
 from models.ai_payload import OllamaPayload
 from typing import List, Dict
 from modules.sentence_transformer import get_vector_data
@@ -22,7 +22,7 @@ def run_llm_generator(chatMessage: List[Dict[str, str]]):
     llm_payload = OllamaPayload(
         model=LLM_MODEL,
         messages=chatMessage,
-        temperature=0.0,
+        temperature=DEFAULT_TEMPERATURE,
         options={"num_predict": LLM_NUM_PREDICT}
     ).model_dump()
 
@@ -39,7 +39,7 @@ def run_llm_generator(chatMessage: List[Dict[str, str]]):
 
             if decoded_line.startswith("data:"):
                 data_content = decoded_line[5:].strip()
-                print(f"{index}__{decoded_line}")
+                print(f"{index}__{data_content}")
 
                 if data_content == "[DONE]":
                     print(finish_text)
@@ -47,9 +47,9 @@ def run_llm_generator(chatMessage: List[Dict[str, str]]):
 
                 try:
                     chunk_json = json.loads(data_content)
-                    chunk_text = chunk_json.get("choices", [{}])[0].get("delta", {}).get("content", "")
+                    chunk_text += chunk_json.get("choices", [{}])[0].get("delta", {}).get("content", "")
                     reasoning_text += chunk_json.get("choices", [{}])[0].get("delta", {}).get("reasoning", "")
-                    finish_text += chunk_json.get("choices", [{}])[0].get("delta", {}).get("finish_reason", "")
+                    finish_text += chunk_json.get("finish_reason", "")
 
                     if chunk_text:
                         yield chunk_text
@@ -57,12 +57,14 @@ def run_llm_generator(chatMessage: List[Dict[str, str]]):
                 except Exception as e:
                     print(f"[스트림 파싱 예외 발생]: {e}")
 
+    
 def run_vlm_inference_generator(patient_info):
     """UI단에서 토스해준 pixel_buffers와 환자 정보를 전달받아 Ollama VLM과 패킷을 맺고 스트림 제너레이터를 리턴"""
 
     pixel_buffers = patient_info["pixel_buffer"]
     description = ""
     images_payload_array = []
+
     yield {"status": "파일 전처리를 시작합니다..."}
     for target_modality in ["CR", "MR"]:
         total_slices = len(pixel_buffers[target_modality])
@@ -71,7 +73,10 @@ def run_vlm_inference_generator(patient_info):
             raise ValueError("전송받은 픽셀 버퍼 내에 슬라이스가 존재하지 않습니다.")
 
         if total_slices > 5:
-            target_indices = [int(total_slices * fraction) for fraction in [0.2, 0.4, 0.6, 0.8]]
+            if target_modality == "MR":
+                target_indices = [int(total_slices * fraction) for fraction in [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]]
+            else:
+                target_indices = [int(total_slices * fraction) for fraction in [0.2, 0.4, 0.6, 0.8]]
         else:
             target_indices = list(range(total_slices))
 
@@ -106,13 +111,47 @@ def run_vlm_inference_generator(patient_info):
                     plt.close()
 
     if images_payload_array:
-        llm_payload = {
+        body_part = patient_info["body_part"]
+        print(f"body_part: {body_part}")
+        if body_part == "UNKOWN":
+            vlm_format = {
+                        "type": "string",
+                        "properties":{
+                            "report_text":{
+                                "type": "string",
+                                "description": "The final formal comprehensive medical report detailed draft. Include interpretation based on the directive."
+                            },
+                            "body_part":{
+                                "type": "string",
+                                "enum": ["SHOULDER", "KNEE", "HIP", "ANKLE", "WRIST", "UNKOWN"],
+                                "description": "Anatomical site classification of the MRI"
+                            }
+                        },
+                        "required": ["report_text", "body_part"]
+                    }
+
+            directive_prompt = (
+                "[IMPORTANT INSTRUCTION]: You are a professional radiologist.\n"
+                "1. Compose a detailed medical report based on the images into 'report_text' field.\n"
+                "2. Classify the anatomical site into 'body_part' field.\n"
+                "Output strictly within the requested JSON schema without any internal monologue."
+            )
+        else:
+            vlm_format = None
+
+            directive_prompt = (
+                "[IMPORTANT INSTRUCTION]: You are a professional radiologist. "
+                "Do not output any chain-of-thought or internal monologues. "
+                "Output ONLY the final formal comprehensive medical report text draft."
+            )
+
+        vlm_payload = {
             "model": VLM_MODEL,
             "messages": [
                 {
                     "role": "user",
                     "content": (
-                        "[IMPORTANT INSTRUCTION]: You are a professional radiologist. Do not output any chain-of-thought, reasoning process, or internal monologues. Output ONLY the final formal medical report structure.\n\n"
+                        f"{directive_prompt}\n\n"
                         f"[Patient Medical Metadata Context]\n"
                         f"- Patient Name: {patient_info['patient_name']} | ID: {patient_info['patient_id']}\n"
                         f"- Study Date: {patient_info['study_date']}\n\n"
@@ -123,12 +162,14 @@ def run_vlm_inference_generator(patient_info):
                     "images": images_payload_array
                 }
             ],
-            "temperature": 0.0,
+            "think": VLM_THINK,
+            "format": vlm_format,
+            "temperature": DEFAULT_TEMPERATURE,
             "options": {"num_predict": VLM_NUM_PREDICT, "num_ctx": VLM_NUM_CTX}
         }
 
         yield {"status": "파일 전처리를 완료하여 AI(VLM)에게 전송합니다..."}
-        vlm_response = requests.post(OLLAMA_VLM_API_URL, json=llm_payload, stream=True, timeout=300)
+        vlm_response = requests.post(OLLAMA_VLM_API_URL, json=vlm_payload, stream=True, timeout=300)
         vlm_response.raise_for_status()
 
         vlm_text = ""
@@ -151,17 +192,31 @@ def run_vlm_inference_generator(patient_info):
                             
                     except Exception as e:
                         print(f"[스트림 파싱 예외 발생]: {e}")
+        
+        
 
         if not vlm_text:
-            yield {"status": f"vlm_text데이터 추출 실패: {reasoning}"}
+           yield {"status": f"vlm_text데이터 추출 실패: {reasoning}"}
         else:
+            if body_part == "UNKOWN":
+                parsed_json = json.loads(vlm_text)
+                body_part = parsed_json.get("body_part", "UNKNOWN").upper().strip()
+                yield {"body_part": body_part}
+                
+                vlm_text = parsed_json.get("report_text", "").strip()
+
+                print(vlm_text)
             yield {"status": "AI에게 받은 데이터를 RAG를 사용하여 재검증 합니다..."}
             retrieved_knowledge = query_vector_db(vlm_text)
 
             yield {"status": "RAG검증을 완료 하였습니다. AI(LLM)에게 전송합니다..."}
             verification_prompt = (
                 "You are a Senior Radiologist and a Medical Report Validation AI.\n"
-                "Thoroughly verify and correct the provided [VLM Draft Interpretation] to ensure it perfectly aligns with the given [Medical Guideline Reference Standard].\n\n"
+                "Your primary mission is to verify the [VLM Draft Interpretation] against the provided [Medical Guideline Reference Standard].\n\n"
+                "[RAG CONTEXT VALIDATION DIRECTIVE]:\n"
+                    "- Carefully assess the semantic correlation between the [VLM Draft Interpretation] and the [Medical Guideline Reference Standard].\n"
+                    "- IF the provided Guideline is irrelevant, inapplicable, or mismatches the anatomical site/pathology of the patient's case, you MUST COMPLETELY DISCARD the Guideline.\n"
+                    "- Never let irrelevant guidelines alter, distort, or corrupt the accurate findings of the initial VLM draft interpretation. Depend solely on the verified imaging findings if a mismatch occurs.\n\n"
                 "[Medical Guideline Reference Standard]\n"
                 f"{retrieved_knowledge}\n\n"
                 "[Patient Metadata]\n"
@@ -180,7 +235,9 @@ def run_vlm_inference_generator(patient_info):
             llm_payload = OllamaPayload(
                     model=LLM_MODEL,
                     messages=chatMessage,
-                    temperature=0.0,
+                    temperature=DEFAULT_TEMPERATURE,
+                    think=LLM_THINK,
+                    stream=True,
                     options={"num_predict": LLM_NUM_PREDICT, "num_ctx": LLM_NUM_CTX}
                 ).model_dump()
 
@@ -206,6 +263,9 @@ def run_vlm_inference_generator(patient_info):
                             print(f"[스트림 파싱 예외 발생]: {e}")
 
             yield result_text
+
+
+
         # reasoning_text = ""
         # finish_text = ""
         # for index, chunk in enumerate(response.iter_lines()):

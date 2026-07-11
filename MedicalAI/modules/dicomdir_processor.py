@@ -61,6 +61,7 @@ def process_dicom_zip(uploaded_zip):
 
             elif rec_type == "SERIES":
                 modality = record.get("Modality", "Unkown").upper().strip()
+                body_part = record.get("BodyPartExamined", "Unkown").upper().strip()
 
             elif rec_type == "IMAGE":
                 if "ReferencedFileID" in record:
@@ -83,6 +84,7 @@ def process_dicom_zip(uploaded_zip):
             "patient_name": patient_name,
             "patient_id": patient_id,
             "study_date": study_date,
+            "body_part": body_part,
             "pixel_buffer": pixel_buffers
         }
     except Exception as e:

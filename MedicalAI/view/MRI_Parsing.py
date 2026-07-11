@@ -63,6 +63,7 @@ if uploaded_file is not None:
     
             if dicom_result["success"]:
                 my_medi.modality = ",".join(dicom_result["pixel_buffer"])
+                my_medi.body_part = dicom_result["body_part"]
     
                 col1, col2, col3 = st.columns(3)
     
@@ -82,6 +83,9 @@ if uploaded_file is not None:
                     for result_chunk in vlm_stream:
                         if isinstance(result_chunk, dict):
                             status_text = result_chunk.get("status", "처리 중...")
+                            body_part = result_chunk.get("body_part", "")
+                            if body_part:
+                                my_medi.body_part = body_part
                             st.write(status_text)
                         else:
                             my_medi.analyzed_text = result_chunk

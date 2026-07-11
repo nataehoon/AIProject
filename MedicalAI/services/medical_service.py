@@ -20,8 +20,8 @@ class MedicalService:
 
     @staticmethod
     def save_my_mediinfo(my_medi: Mediinfo) -> bool | None:
-        query = "INSERT INTO mediinfo(member_id, modality, file_name, analyzed_text) VALUES(%s, %s, %s, %s);"
-        params = (my_medi.member_id, my_medi.modality, my_medi.file_name, my_medi.analyzed_text)
+        query = "INSERT INTO mediinfo(member_id, modality, file_name, analyzed_text, body_part) VALUES(%s, %s, %s, %s, %s);"
+        params = (my_medi.member_id, my_medi.modality, my_medi.file_name, my_medi.analyzed_text, my_medi.body_part)
 
         return execute_non_query(query, params)
 
@@ -84,12 +84,16 @@ class MedicalService:
     @staticmethod
     def run_rag_pipeline():
         yield 1
-        qa_dataset = load_dataset(QA_DATASET_MODEL, split="train[:50]")
+        qa_dataset = load_dataset(QA_DATASET_MODEL, split="train[:]")
 
         yield 2
         qa_texts = []
         for row in qa_dataset:
-            combined = f"Medical Question: {row['question'].strip()}\nExpert Answer: {row['answer'].strip()}"
+            question = row.get("question") or ""
+            answer = row.get("answer") or ""
+            if not question or not answer:
+                continue
+            combined = f"Medical Question: {question.strip()}\nExpert Answer: {answer.strip()}"
             qa_texts.append(combined)
 
         qa_v_list = get_vector_data(qa_texts)
@@ -112,7 +116,7 @@ class MedicalService:
         execute_transaction_query(qa_queries_and_params)
 
         yield 4
-        paper_dataset = load_dataset(PAPER_DATASET_MODEL, split="train[:50]")
+        paper_dataset = load_dataset(PAPER_DATASET_MODEL, split="train[:]")
 
         yield 5
         paper_chunks_data = []
@@ -120,10 +124,12 @@ class MedicalService:
             title = paper["title"]
             abstract = paper["abstract"]
 
+            page_num = 0
             chunk_size = 1000
             for start_idx in range(0, len(abstract), chunk_size):
+                page_num += 1
                 chunk_str = abstract[start_idx: start_idx + chunk_size]
-                paper_chunks_data.append({"title": title, "content": chunk_str})
+                paper_chunks_data.append({"title": title, "content": chunk_str, "page_num": page_num})
 
         chunk_texts = [item["content"] for item in paper_chunks_data]
         paper_v_list = get_vector_data(chunk_texts)
@@ -136,7 +142,7 @@ class MedicalService:
 
         paper_query = "INSERT INTO medical_paper_chunks_staging(document_name, page_number, chunk_index, chunk_content, embedding, version) VALUES(%s, %s, %s, %s, %s, %s);"
         for index, item in enumerate(paper_chunks_data):
-            paper_params = (item["title"], 1, index, item["content"], paper_v_list[index], now)
+            paper_params = (item["title"], item["page_num"], index, item["content"], paper_v_list[index], now)
             paper_queries_and_params.append((paper_query, paper_params))
 
         paper_fifo_query = "DELETE FROM medical_paper_chunks_staging WHERE version NOT IN (SELECT version FROM (SELECT DISTINCT version FROM medical_paper_chunks_staging ORDER BY version DESC LIMIT 3) AS tmp);"

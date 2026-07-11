@@ -13,4 +13,5 @@ class RAGService:
         paper_row = execute_select_query(query, params)[0]
 
         result_rag_text = f"Medical Question: {qa_row["question"]}\nExpert Answer: {qa_row["answer"]}\nPaper Name: {paper_row["document_name"]}\nAbstract: {paper_row["chunk_content"]}\nPage Number: {paper_row["page_number"]}"
+        print(f"RAG_text: {result_rag_text}")
         return result_rag_text

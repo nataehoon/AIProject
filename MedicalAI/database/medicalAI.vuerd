@@ -4,13 +4,13 @@
   "settings": {
     "width": 2000,
     "height": 2000,
-    "scrollTop": 0,
+    "scrollTop": -200,
     "scrollLeft": 0,
     "zoomLevel": 1,
     "show": 510,
     "database": 16,
     "databaseName": "",
-    "canvasType": "@dineug/erd-editor/builtin-schema-sql",
+    "canvasType": "ERD",
     "language": 1,
     "tableNameCase": 4,
     "columnNameCase": 2,
@@ -137,6 +137,7 @@
           "yEBp5Fwn7fJQcgYQcG9KX",
           "mOOsQkOnqKoFpT0NFirZu",
           "YelWYmeSIKcDXi1VcgNIC",
+          "-dELYh_IS3_aH5ITgAc99",
           "9vEojVl-o_-Gk9yuXaRpt",
           "KCdGYb2EiuHsceg8NuZZA"
         ],
@@ -146,6 +147,7 @@
           "mOOsQkOnqKoFpT0NFirZu",
           "Hllr1ZjnLZPGsOJ5dgMJ7",
           "YelWYmeSIKcDXi1VcgNIC",
+          "-dELYh_IS3_aH5ITgAc99",
           "9vEojVl-o_-Gk9yuXaRpt",
           "KCdGYb2EiuHsceg8NuZZA"
         ],
@@ -158,7 +160,7 @@
           "color": ""
         },
         "meta": {
-          "updateAt": 1783148704707,
+          "updateAt": 1783754947741,
           "createAt": 1782529239608
         }
       },
@@ -843,19 +845,19 @@
         "id": "YelWYmeSIKcDXi1VcgNIC",
         "tableId": "niwJHbwrr92k4EVA9MkD-",
         "name": "modality",
-        "comment": "ENUM ('CR', 'MR', 'US', 'CT', 'DX')",
+        "comment": "'CR', 'MR', 'US', 'CT', 'DX'",
         "dataType": "dicom_modality",
         "default": "",
         "options": 8,
         "ui": {
           "keys": 0,
           "widthName": 60,
-          "widthComment": 174,
+          "widthComment": 129,
           "widthDataType": 86,
           "widthDefault": 60
         },
         "meta": {
-          "updateAt": 1782530353901,
+          "updateAt": 1783755119314,
           "createAt": 1782529960217
         }
       },
@@ -1638,6 +1640,26 @@
           "updateAt": 1783168650191,
           "createAt": 1783168650190
         }
+      },
+      "-dELYh_IS3_aH5ITgAc99": {
+        "id": "-dELYh_IS3_aH5ITgAc99",
+        "tableId": "niwJHbwrr92k4EVA9MkD-",
+        "name": "body_part",
+        "comment": "환부",
+        "dataType": "varchar(100)",
+        "default": "",
+        "options": 8,
+        "ui": {
+          "keys": 0,
+          "widthName": 60,
+          "widthComment": 60,
+          "widthDataType": 67,
+          "widthDefault": 60
+        },
+        "meta": {
+          "updateAt": 1783755112371,
+          "createAt": 1783754944528
+        }
       }
     },
     "relationshipEntities": {
@@ -1689,7 +1711,7 @@
             "mOOsQkOnqKoFpT0NFirZu"
           ],
           "x": 897,
-          "y": 355,
+          "y": 367,
           "direction": 1
         },
         "meta": {

@@ -7,6 +7,7 @@ class Mediinfo(BaseModel):
     member_id:int = 0
     modality: str = ""
     file_name: str = ""
+    body_part: str = ""
     analyzed_text: str = ""
 
 class VersionInfo(BaseModel):
