@@ -1,17 +1,9 @@
 import streamlit as st
 from models.member import Member
 from services.member_service import MemberService
-import extra_streamlit_components as stx
 import time
 
-cookie_manager = stx.CookieManager()
-
-cookie_data = cookie_manager.get("access_token")
-if cookie_data:
-    st.session_state.logged_in = True
-    st.session_state.user_profile = MemberService.login_by_token(cookie_data)
-    
-    st.rerun()
+cookie_manager = st.session_state.cookie
 
 st.title("MedicalAI 로그인")
 
@@ -38,9 +30,9 @@ with st.form(key="login_form"):
             if token:
                 cookie_manager.set("access_token", token, max_age=3600)
                 time.sleep(0.5)
+
                 st.session_state.logged_in = True
                 st.session_state.user_profile = MemberService.login_by_token(token)
-
                 st.rerun()
             else:
                 st.error("아이디와 패스워드를 다시 확인해 주세요.")

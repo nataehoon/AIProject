@@ -16,6 +16,12 @@ if "global_chat_history" not in st.session_state:
         "content": f"안녕하세요, {st.session_state.user_profile.name}님 어떤 의료 데이터를 함께 검토해 드릴까요?"
     })
 
+if "recent_chat_history" not in st.session_state:
+    st.session_state.recent_chat_history = []
+
+if "summary_chat_data" not in st.session_state:
+    st.session_state.summary_chat_data = ""
+
 if "is_processing" not in st.session_state:
     st.session_state.is_processing = False
 
@@ -49,7 +55,10 @@ with chat_viewport:
                     st.write(message["content"])
 
 if user_query := st.chat_input("의료 질문을 입력하세요.", disabled=st.session_state.is_processing):
-    st.session_state.global_chat_history.append({"role": "user", "content": user_query})
+    user_prompt = {"role": "user", "content": user_query}
+    last_assistant_prompt = next((msg for msg in reversed(st.session_state.global_chat_history) if msg.get("role") == "assistant"), None)
+    st.session_state.recent_chat_history = [last_assistant_prompt, user_prompt]
+    st.session_state.global_chat_history.append(user_prompt)
     with chat_viewport:
         empty_col, content_col, avatar_col = st.columns([2, 7.5, 0.5])
         with content_col:
@@ -70,20 +79,27 @@ if user_query := st.chat_input("의료 질문을 입력하세요.", disabled=st.
 
     with chat_viewport:
         with st.chat_message("assistant"):
+            status_container = st.empty()
             response_placeholder = st.empty()
-            ai_response = ChatService.send_rout(st.session_state.global_chat_history, st.session_state.user_profile.id)
-            with st.status("🔍 AI의 답변을 기다리는 중입니다...", expanded=True) as status:
-                final_report = ""
-                for text_chunk in ai_response:
-                    if isinstance(text_chunk, dict):
-                        status_text = text_chunk.get("status", "처리 중...")
-                        st.write(status_text)
-                    else:
-                        final_report += text_chunk
-                        response_placeholder.markdown(final_report + "▌")
+            
+            with status_container:
+                with st.status("🔍 AI의 답변을 기다리는 중입니다...", expanded=True) as status:
+                    ai_response = ChatService.send_rout(st.session_state.recent_chat_history, st.session_state.summary_chat_data, st.session_state.user_profile.id)
+                    final_report = ""
+                    for text_chunk in ai_response:
+                        if isinstance(text_chunk, dict):
+                            status_text = text_chunk.get("status", "처리 중...")
+                            if status_text:
+                                st.write(status_text)
+                            summary_data = text_chunk.get("summary")
+                            if summary_data:
+                                st.session_state.summary_chat_data = summary_data
+                        else:
+                            final_report += text_chunk
+                            response_placeholder.markdown(final_report + "▌")
 
-                if final_report:
-                    response_placeholder.markdown(final_report)
+                    if final_report:
+                        response_placeholder.markdown(final_report)
 
     st.session_state.global_chat_history.append({"role": "assistant", "content": final_report})
     st.session_state.is_processing = False

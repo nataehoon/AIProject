@@ -3,7 +3,7 @@ import base64
 import io
 import requests
 import json
-from config import VLM_MODEL, LLM_MODEL, OLLAMA_VLM_API_URL, OLLAMA_LLM_API_URL, VLM_NUM_PREDICT, LLM_NUM_PREDICT, VLM_NUM_CTX, LLM_NUM_CTX, VLM_THINK, LLM_THINK, DEFAULT_TEMPERATURE
+import config
 from models.ai_payload import OllamaPayload
 from typing import List, Dict
 from modules.sentence_transformer import get_vector_data
@@ -18,17 +18,49 @@ def query_vector_db(query_text: str) -> str:
 
     return RAGService.get_rag_data(v_data)
 
+def run_router_llm(chatMessage: List[Dict[str, str]]):
+    llm_payload = OllamaPayload(
+        model=config.ROUTER_MODEL,
+        messages=chatMessage,
+        temperature=config.DEFAULT_TEMPERATURE,
+        options={"num_predict": config.LLM_NUM_PREDICT, "num_ctx": config.LLM_NUM_CTX}
+    ).model_dump()
+
+    response = requests.post(config.ROUTER_LLM_API_URL, json=llm_payload, stream=True, timeout=300)
+    response.raise_for_status()
+
+    result_text = ""
+    for chunk in response.iter_lines():
+        if chunk:
+            decoded_line = chunk.decode('utf-8').strip()
+
+            if decoded_line.startswith("data:"):
+                data_content = decoded_line[5:].strip()
+
+                if data_content == "[DONE]":
+                    break
+
+                try:
+                    chunk_json = json.loads(data_content)
+                    result_text += chunk_json.get("choices", [{}])[0].get("delta", {}).get("content", "")
+                except Exception as e:
+                    print(f"[스트림 파싱 예외 발생]: {e}")
+
+    return result_text
+
 def run_llm_generator(chatMessage: List[Dict[str, str]]):
     llm_payload = OllamaPayload(
-        model=LLM_MODEL,
+        model=config.LLM_MODEL,
         messages=chatMessage,
-        temperature=DEFAULT_TEMPERATURE,
-        options={"num_predict": LLM_NUM_PREDICT}
+        temperature=config.DEFAULT_TEMPERATURE,
+        think=config.LLM_THINK,
+        stream=True,
+        options={"num_predict": config.LLM_NUM_PREDICT, "num_ctx": config.LLM_NUM_CTX}
     ).model_dump()
 
     print(llm_payload)
 
-    response = requests.post(OLLAMA_LLM_API_URL, json=llm_payload, stream=True, timeout=300)
+    response = requests.post(config.OLLAMA_LLM_API_URL, json=llm_payload, stream=True, timeout=300)
     response.raise_for_status()
     
     reasoning_text = ""
@@ -39,15 +71,13 @@ def run_llm_generator(chatMessage: List[Dict[str, str]]):
 
             if decoded_line.startswith("data:"):
                 data_content = decoded_line[5:].strip()
-                print(f"{index}__{data_content}")
 
                 if data_content == "[DONE]":
-                    print(finish_text)
                     break
 
                 try:
                     chunk_json = json.loads(data_content)
-                    chunk_text += chunk_json.get("choices", [{}])[0].get("delta", {}).get("content", "")
+                    chunk_text = chunk_json.get("choices", [{}])[0].get("delta", {}).get("content", "")
                     reasoning_text += chunk_json.get("choices", [{}])[0].get("delta", {}).get("reasoning", "")
                     finish_text += chunk_json.get("finish_reason", "")
 
@@ -146,7 +176,7 @@ def run_vlm_inference_generator(patient_info):
             )
 
         vlm_payload = {
-            "model": VLM_MODEL,
+            "model": config.VLM_MODEL,
             "messages": [
                 {
                     "role": "user",
@@ -162,14 +192,14 @@ def run_vlm_inference_generator(patient_info):
                     "images": images_payload_array
                 }
             ],
-            "think": VLM_THINK,
+            "think": config.VLM_THINK,
             "format": vlm_format,
-            "temperature": DEFAULT_TEMPERATURE,
-            "options": {"num_predict": VLM_NUM_PREDICT, "num_ctx": VLM_NUM_CTX}
+            "temperature": config.DEFAULT_TEMPERATURE,
+            "options": {"num_predict": config.VLM_NUM_PREDICT, "num_ctx": config.VLM_NUM_CTX}
         }
 
         yield {"status": "파일 전처리를 완료하여 AI(VLM)에게 전송합니다..."}
-        vlm_response = requests.post(OLLAMA_VLM_API_URL, json=vlm_payload, stream=True, timeout=300)
+        vlm_response = requests.post(config.OLLAMA_VLM_API_URL, json=vlm_payload, stream=True, timeout=300)
         vlm_response.raise_for_status()
 
         vlm_text = ""
@@ -233,15 +263,15 @@ def run_vlm_inference_generator(patient_info):
             chatMessage = [{"role": "user", "content": verification_prompt}]
 
             llm_payload = OllamaPayload(
-                    model=LLM_MODEL,
+                    model=config.LLM_MODEL,
                     messages=chatMessage,
-                    temperature=DEFAULT_TEMPERATURE,
-                    think=LLM_THINK,
+                    temperature=config.DEFAULT_TEMPERATURE,
+                    think=config.LLM_THINK,
                     stream=True,
-                    options={"num_predict": LLM_NUM_PREDICT, "num_ctx": LLM_NUM_CTX}
+                    options={"num_predict": config.LLM_NUM_PREDICT, "num_ctx": config.LLM_NUM_CTX}
                 ).model_dump()
 
-            response = requests.post(OLLAMA_LLM_API_URL, json=llm_payload, stream=True, timeout=300)
+            response = requests.post(config.OLLAMA_LLM_API_URL, json=llm_payload, stream=True, timeout=300)
             response.raise_for_status()
 
             result_text = ""

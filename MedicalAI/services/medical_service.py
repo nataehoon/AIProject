@@ -84,19 +84,22 @@ class MedicalService:
     @staticmethod
     def run_rag_pipeline():
         yield 1
-        qa_dataset = load_dataset(QA_DATASET_MODEL, split="train[:]")
+        qa_dataset = load_dataset(QA_DATASET_MODEL, split="train[:200]")
 
         yield 2
-        qa_texts = []
-        for row in qa_dataset:
-            question = row.get("question") or ""
-            answer = row.get("answer") or ""
-            if not question or not answer:
-                continue
-            combined = f"Medical Question: {question.strip()}\nExpert Answer: {answer.strip()}"
-            qa_texts.append(combined)
+        try:
+            qa_texts = []
+            for row in qa_dataset:
+                question = row.get("question") or ""
+                answer = row.get("answer") or ""
+                if not question or not answer:
+                    continue
+                combined = f"Medical Question: {question.strip()}\nExpert Answer: {answer.strip()}"
+                qa_texts.append(combined)
 
-        qa_v_list = get_vector_data(qa_texts)
+            qa_v_list = get_vector_data(qa_texts)
+        except Exception as e:
+            print(f"Q&A 전처리 error: {e}")
 
         yield 3
         now = datetime.now().strftime("%Y-%m-%d")
@@ -116,23 +119,26 @@ class MedicalService:
         execute_transaction_query(qa_queries_and_params)
 
         yield 4
-        paper_dataset = load_dataset(PAPER_DATASET_MODEL, split="train[:]")
+        paper_dataset = load_dataset(PAPER_DATASET_MODEL, split="train[:200]")
 
         yield 5
-        paper_chunks_data = []
-        for paper in paper_dataset:
-            title = paper["title"]
-            abstract = paper["abstract"]
+        try:
+            paper_chunks_data = []
+            for paper in paper_dataset:
+                title = paper["title"]
+                abstract = paper["abstract"]
 
-            page_num = 0
-            chunk_size = 1000
-            for start_idx in range(0, len(abstract), chunk_size):
-                page_num += 1
-                chunk_str = abstract[start_idx: start_idx + chunk_size]
-                paper_chunks_data.append({"title": title, "content": chunk_str, "page_num": page_num})
+                page_num = 0
+                chunk_size = 1000
+                for start_idx in range(0, len(abstract), chunk_size):
+                    page_num += 1
+                    chunk_str = abstract[start_idx: start_idx + chunk_size]
+                    paper_chunks_data.append({"title": title, "content": chunk_str, "page_num": page_num})
 
-        chunk_texts = [item["content"] for item in paper_chunks_data]
-        paper_v_list = get_vector_data(chunk_texts)
+            chunk_texts = [item["content"] for item in paper_chunks_data]
+            paper_v_list = get_vector_data(chunk_texts)
+        except Exception as e:
+            print(f"paper 전처리 error: {e}")
 
         yield 6
         paper_queries_and_params = []

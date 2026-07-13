@@ -1,5 +1,4 @@
 import streamlit as st
-import time
 from services.medical_service import MedicalService
 #from models.member import UserSessionDTO
 
