@@ -6,14 +6,14 @@ import json
 import config
 from models.ai_payload import OllamaPayload
 from typing import List, Dict
-from modules.sentence_transformer import get_vector_data
+from modules.sentence_transformer import list_encode
 from services.rag_service import RAGService
 
 def query_vector_db(query_text: str) -> str:
     raw_data = []
     raw_data.append(query_text)
 
-    v_list = get_vector_data(raw_data)
+    v_list = list_encode(raw_data)
     v_data = v_list[0]
 
     return RAGService.get_rag_data(v_data)
@@ -23,7 +23,9 @@ def run_router_llm(chatMessage: List[Dict[str, str]]):
         model=config.ROUTER_MODEL,
         messages=chatMessage,
         temperature=config.DEFAULT_TEMPERATURE,
-        options={"num_predict": config.LLM_NUM_PREDICT, "num_ctx": config.LLM_NUM_CTX}
+        think=config.ROUTER_THINK,
+        stream=True,
+        options={"num_predict": config.ROUTER_NUM_PREDICT, "num_ctx": config.ROUTER_NUM_CTX}
     ).model_dump()
 
     response = requests.post(config.ROUTER_LLM_API_URL, json=llm_payload, stream=True, timeout=300)

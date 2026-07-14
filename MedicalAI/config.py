@@ -16,7 +16,7 @@ ROUTER_LLM_API_URL = "https://overrate-comprised-outfield.ngrok-free.dev/v1/imag
 ROUTER_NUM_PREDICT = 1024
 ROUTER_NUM_CTX = 2048
 ROUTER_MODEL = "qwen3-vl:8b-instruct"
-ROUTER_THINK = True
+ROUTER_THINK = False
 
 DEFAULT_TEMPERATURE = 0.0
 
