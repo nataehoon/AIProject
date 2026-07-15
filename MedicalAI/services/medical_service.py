@@ -1,7 +1,7 @@
 from modules.db_repository import execute_select_query, execute_non_query, execute_transaction_query
 from models.mediinfo import Mediinfo, VersionInfo, QA_RawData, Paper_RawData
 from datetime import datetime
-from modules.sentence_transformer import get_vector_data
+from modules.sentence_transformer import encode, list_encode
 from datasets import load_dataset
 from config import QA_DATASET_MODEL, PAPER_DATASET_MODEL
 
@@ -97,7 +97,7 @@ class MedicalService:
                 combined = f"Medical Question: {question.strip()}\nExpert Answer: {answer.strip()}"
                 qa_texts.append(combined)
 
-            qa_v_list = get_vector_data(qa_texts)
+            qa_v_list = list_encode(qa_texts)
         except Exception as e:
             print(f"Q&A 전처리 error: {e}")
 
@@ -136,7 +136,7 @@ class MedicalService:
                     paper_chunks_data.append({"title": title, "content": chunk_str, "page_num": page_num})
 
             chunk_texts = [item["content"] for item in paper_chunks_data]
-            paper_v_list = get_vector_data(chunk_texts)
+            paper_v_list = list_encode(chunk_texts)
         except Exception as e:
             print(f"paper 전처리 error: {e}")
 

@@ -1,7 +1,5 @@
 import streamlit as st
 from services.chat_service import ChatService
-from services.medical_service import MedicalService
-from models.mediinfo import Mediinfo
 
 st.set_page_config(
     page_title="Chatting",

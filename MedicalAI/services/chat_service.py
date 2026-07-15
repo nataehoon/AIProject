@@ -2,6 +2,8 @@ from modules.db_repository import execute_select_query, execute_non_query, execu
 from typing import List, Dict
 import modules.ai_processor as ai_processor
 import json
+from modules.sentence_transformer import encode
+from services.rag_service import RAGService
 
 def _pre_data_collection(body_part: List[str], user_id: str):
     query = "SELECT * FROM mediinfo WHERE member_id=%s"
@@ -15,28 +17,30 @@ def _pre_data_collection(body_part: List[str], user_id: str):
             part = row.get("body_part")
             print(f"part: {part}")
             if part in body_part:
-                system_prompt += f"분석 부위: {part}\n\n분석 내용: {row.get("analyzed_text", "")}\n\n"
+                system_prompt += f"research_boy_part: {part}\n\nresearch_content: {row.get("analyzed_text", "")}\n\n"
 
         return system_prompt
 
 def _before_chat_summary(recent_chatMessage: List[Dict[str, str]], summary_chatMessage: str):
     summaryMessage = []
     summary_system_prompt = """
-        당신은 대화 기록을 압축하는 요약기입니다.
+        You are a conversation summarization assistant.
 
-        목표는 이후 AI가 자연스럽게 대화를 이어갈 수 있도록
-        대화의 핵심 맥락만 유지하는 것입니다.
+        Your goal is to maintain a concise and up-to-date summary of the conversation so that another AI can naturally continue the dialogue later.
 
-        규칙
+        Instructions:
 
-        - 기존 요약과 새로운 대화를 하나의 최신 요약으로 통합합니다.
-        - 기존 요약에 있는 중요한 정보는 유지합니다.
-        - 새로운 대화에서 추가되거나 변경된 정보를 반영합니다.
-        - 같은 내용은 중복해서 작성하지 않습니다.
-        - 아직 해결되지 않은 질문이나 확인이 필요한 내용은 반드시 유지합니다.
-        - 사용자의 목적과 중요한 사실은 절대 삭제하지 않습니다.
-        - 새로운 정보를 만들어내지 않습니다.
-        - 요약문만 출력합니다.
+        - Merge the existing summary and the new conversation into a single updated summary.
+        - Preserve all important information from the existing summary unless it has been explicitly corrected or replaced.
+        - Incorporate any new or updated information from the latest conversation.
+        - Eliminate redundant or duplicate information.
+        - Preserve unresolved questions, pending tasks, and topics that still require follow-up.
+        - Never remove the user's goals, preferences, or other important facts.
+        - Do not infer, assume, or invent information that was not explicitly stated.
+        - Keep the summary concise while preserving all essential context.
+
+        Output only the updated summary.
+        Do not include explanations, markdown, or any additional text.
         """.strip()
     
     summaryMessage.append({"role": "system", "content": summary_system_prompt})
@@ -49,7 +53,7 @@ def _before_chat_summary(recent_chatMessage: List[Dict[str, str]], summary_chatM
         else:
             recent_user = prompt.get("content")
 
-    summary_user_prompt = f"[기존 요약 본문]\n{summary_chatMessage}\n\n[새 대화]\n\nassistant: {recent_assistant}\nuser: {recent_user}"
+    summary_user_prompt = f"[Existing summary body]\n{summary_chatMessage}\n\n[New conversation]\n\nassistant: {recent_assistant}\nuser: {recent_user}"
     summaryMessage.append({"role": "user", "content": summary_user_prompt})
 
     summary_response = ai_processor.run_llm_generator(summaryMessage)
@@ -58,58 +62,138 @@ def _before_chat_summary(recent_chatMessage: List[Dict[str, str]], summary_chatM
         summary_text += chunk
 
 def _get_rag_data(recent_chatMessage: List[Dict[str, str]], summary_chatMessage: str, sources: List[str]):
-    pass
+    ragMessage = []
+    rag_system_prompt = """
+                        You are a query rewriting engine for a Retrieval-Augmented Generation (RAG) system.
+
+                        Your task is to convert the user's current question and the previous conversation into a single search query.
+
+                        Rules:
+                        1. Understand the user's true intent using both the conversation history and the latest user message.
+                        2. Resolve omitted subjects, pronouns, and references using the conversation history.
+                        3. Extract only the essential concepts required for semantic retrieval.
+                        4. Remove greetings, filler words, emotions, and conversational expressions.
+                        5. Do not answer the question.
+                        6. Do not explain anything.
+                        7. Return exactly one concise sentence.
+                        8. Preserve important technical terms, library names, model names, database names, APIs, and programming languages.
+                        9. If the user asks a follow-up question, rewrite it into a standalone search query.
+                        10. The output should be optimized for embedding-based similarity search.
+
+                        Output:
+                        One sentence only.
+                        """.strip()
+
+    ragMessage.append({"role": "system", "content": rag_system_prompt})
+
+    recent_assistant = ""
+    recent_user = ""
+    for prompt in recent_chatMessage:
+        if prompt.get("role") == "assistant":
+            recent_assistant = prompt.get("content")
+        else:
+            recent_user = prompt.get("content")
+
+    rag_user_prompt = f"[Existing summary body]\n{summary_chatMessage}\n\n[New conversation]\n\nassistant: {recent_assistant}\nuser: {recent_user}"
+    ragMessage.append({"role": "user", "content": rag_user_prompt})
+
+    rag_response = ai_processor.run_llm_generator(ragMessage)
+    rag_text = ""
+    for chunk in rag_response:
+        rag_text += chunk
+
+    v_data = encode(rag_text)
+
+    rag_text = ""
+    for source in sources:
+        if source == "qa":
+            qa_rag = RAGService.get_rag_data(v_data)
+            if qa_rag:
+                rag_text += f"[Q&A]\n{qa_rag}"
+        elif source == "paper":
+            paper_rag = RAGService.get_rag_data(v_data)
+            if paper_rag:
+                rag_text += f"[Paper]\n{paper_rag}"
+
+    if rag_text:
+        rag_text = """
+                System
+
+                You are a medical AI assistant.
+
+                Answer the user's question using the retrieved context as the primary source of information.
+
+                If the retrieved context is insufficient, explicitly state that the available information is insufficient instead of making up facts.
+
+                Always answer in Korean.\n\n
+                """.strip() + rag_text
+
+    return rag_text
 
 class ChatService:
 
     @staticmethod
     def run_rout(recent_chatMessage: List[Dict[str, str]], summary_chatMessage: str):
         routMessage = []
-        rout_system_prompt = """당신은 의료 AI 시스템의 요청 라우터입니다.
+        rout_system_prompt = """You are a request router for a medical AI system.
 
-                                현재 사용자 질문을 중심으로 판단하고,
-                                최근 대화와 이전 대화 요약은 질문이 모호할 때만 참고하세요.
+                                Prioritize the user's latest message when making decisions.
+                                Use the recent conversation history and previous conversation summary only if the current question is ambiguous or depends on prior context.
 
-                                다음 항목을 분류하세요.
+                                Classify the request according to the following fields.
 
                                 1. context_relation
-                                - continuation: 이전 대화와 직접 연결된 질문 또는 답변
-                                - new_topic: 이전 대화와 무관한 새로운 주제
+                                - continuation: The user's question is directly related to the previous conversation.
+                                - new_topic: The user's question introduces a new topic unrelated to the previous conversation.
 
                                 2. retrieval_required
-                                - true: 의료 관련 질문이며, 정확한 답변을 위해 외부 데이터 검색이 필요함
-                                - false: 주어진 문맥과 일반적인 대화 능력만으로 처리 가능함
+                                - true: The request is medical-related and requires external knowledge retrieval to provide an accurate answer.
+                                - false: The request can be answered using the current conversation context and the model's general knowledge.
 
                                 3. sources
-                                - qa: 명확하고 직접적인 사실, 정의, 기준, 짧은 답변
-                                - paper: 연구 근거 비교, 복합 원인 분석, 깊은 추론
-                                - qa와 paper가 모두 필요하면 둘 다 선택
-                                - 검색이 필요하지 않으면 빈 배열
+                                Select one or more of the following:
+                                - qa: For factual questions, definitions, diagnostic criteria, guidelines, or short direct answers.
+                                - paper: For research evidence, literature comparison, complex reasoning, or in-depth medical analysis.
+                                - Select both "qa" and "paper" if both are needed.
+                                - Return an empty array if retrieval is not required.
 
                                 4. reasoning_level
+                                Choose one of:
                                 - low
                                 - medium
                                 - high
 
                                 5. body_part
-                                - SHOULDER: 어깨 질문
-                                - KNEE: 무릎 질문
-                                - HIP: 힙 관절 질문
-                                - ANKLE: 발목 질문
-                                - WRIST: 손목 질문
-                                - ELBOW: 팔꿈치 질문
-                                - 복합 질문일 경우 중복 선택 가능함
-                                - 특정 관절 질문이 아닌경우 빈 배열
+                                Select one or more of the following if applicable:
+                                - SHOULDER
+                                - KNEE
+                                - HIP
+                                - ANKLE
+                                - WRIST
+                                - ELBOW
 
-                                6. route는 아래 중 하나로 결정하세요.
+                                If the question involves multiple joints, include all relevant body parts.
+                                If the question is not about a specific joint, return an empty array.
+
+                                6. route
+                                Choose exactly one of the following:
                                 - DIRECT_CONTINUATION
                                 - DIRECT_NEW_TOPIC
                                 - RAG_QA
                                 - RAG_PAPER
                                 - RAG_HYBRID
 
-                                현재 사용자 질문을 과거 대화보다 우선하세요.
-                                반드시 JSON만 출력하세요.
+                                Decision Guidelines:
+                                - Always prioritize the user's latest message over previous conversations.
+                                - Use conversation history only when necessary to resolve references or ambiguity.
+                                - If retrieval is not required, the route must be either DIRECT_CONTINUATION or DIRECT_NEW_TOPIC.
+                                - If retrieval is required:
+                                - Use RAG_QA for factual questions.
+                                - Use RAG_PAPER for research-oriented or evidence-based questions.
+                                - Use RAG_HYBRID when both QA knowledge and research literature are needed.
+
+                                Return only a valid JSON object.
+                                Do not include any explanations, markdown, or additional text.
                                 """.strip()
         routMessage.append({"role": "system", "content": rout_system_prompt})
 
@@ -166,8 +250,9 @@ class ChatService:
 
             sources = rout_data.get("sources")
             if len(sources) > 0:
-                _get_rag_data(recent_chatMessage, summary_chatMessage, sources)
-
+                rag_data = _get_rag_data(recent_chatMessage, summary_chatMessage, sources)
+                print(f"rag_data: {rag_data}")
+                chatMessage.append({"role": "system", "content": f"{rag_data}"})
 
         if len(recent_chatMessage) >= 2:
             yield {"status": "사전 답변을 정리하여 문맥을 파악합니다..."}
@@ -175,7 +260,7 @@ class ChatService:
             summary_text = _before_chat_summary(recent_chatMessage, summary_chatMessage)
             if summary_text:
                 yield {"summary": summary_text}
-                chatMessage.append({"role": "system", "content": f"다음은 이전 대화의 요약입니다.\n답변에서는 이 요약을 언급하지 말고 맥락으로만 활용하세요.\n\n{summary_text}"})
+                chatMessage.append({"role": "system", "content": f"The following is a summary of the previous conversation.\nPlease use this summary only for context and do not mention it in your response.\n\n{summary_text}"})
     
 
         yield {"status": "질문을 LLM에게 전달합니다..."}

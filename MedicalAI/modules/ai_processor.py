@@ -6,15 +6,14 @@ import json
 import config
 from models.ai_payload import OllamaPayload
 from typing import List, Dict
-from modules.sentence_transformer import list_encode
+from modules.sentence_transformer import encode
 from services.rag_service import RAGService
 
 def query_vector_db(query_text: str) -> str:
     raw_data = []
     raw_data.append(query_text)
 
-    v_list = list_encode(raw_data)
-    v_data = v_list[0]
+    v_data = encode(raw_data)
 
     return RAGService.get_rag_data(v_data)
 
