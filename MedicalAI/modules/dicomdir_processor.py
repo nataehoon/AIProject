@@ -57,11 +57,11 @@ def process_dicom_zip(uploaded_zip):
                 patient_id = str(record.get("PatientID", "Unknown")).strip()
 
             elif rec_type == "STUDY":
-                study_date = str(record.get("StudyDate", "Unkown")).strip()
+                study_date = str(record.get("StudyDate", "Unknown")).strip()
 
             elif rec_type == "SERIES":
-                modality = record.get("Modality", "Unkown").upper().strip()
-                body_part = record.get("BodyPartExamined", "Unkown").upper().strip()
+                modality = record.get("Modality", "Unknown").upper().strip()
+                body_part = record.get("BodyPartExamined", "Unknown").upper().strip()
 
             elif rec_type == "IMAGE":
                 if "ReferencedFileID" in record:

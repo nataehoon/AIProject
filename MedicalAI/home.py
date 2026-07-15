@@ -26,7 +26,7 @@ cookies = st.session_state.cookie.get_all()
 login_page = st.Page("view/login.py", title="로그인", icon="🔒", default=True)
 chat_page = st.Page("view/chat.py", title="채팅", icon="💬", default=True) #🤖🧑‍⚕️
 lobby_page = st.Page("view/lobby.py", title="대시보드", icon="🧬")
-file_research_page = st.Page("view/MRI_Parsing.py", title="파일 분석", icon="🔍")
+file_research_page = st.Page("view/DICOM_Parsing.py", title="파일 분석", icon="🔍")
 
 if "access_token" in cookies:
     token = cookies["access_token"]

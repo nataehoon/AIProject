@@ -81,7 +81,7 @@ if user_query := st.chat_input("의료 질문을 입력하세요.", disabled=st.
             response_placeholder = st.empty()
             
             with status_container:
-                with st.status("🔍 AI의 답변을 기다리는 중입니다...", expanded=True) as status:
+                with st.status("🔍 AI의 답변을 기다리는 중입니다...", expanded=False) as status:
                     ai_response = ChatService.send_chat(st.session_state.recent_chat_history, st.session_state.summary_chat_data, st.session_state.user_profile.id)
                     final_report = ""
                     for text_chunk in ai_response:

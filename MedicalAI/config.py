@@ -23,3 +23,5 @@ DEFAULT_TEMPERATURE = 0.0
 DEFAULT_EMBEDDING_MODEL = "BM-K/KoSimCSE-roberta-multitask"
 QA_DATASET_MODEL = "lavita/MedQuAD"
 PAPER_DATASET_MODEL = "ahmedabdelwahed/Medical_papers_title_and_abstract_NLP_dataset"
+
+RAG_SIMILARITY = "0.75"

@@ -104,31 +104,9 @@ def _get_rag_data(recent_chatMessage: List[Dict[str, str]], summary_chatMessage:
 
     v_data = encode(rag_text)
 
-    rag_text = ""
-    for source in sources:
-        if source == "qa":
-            qa_rag = RAGService.get_rag_data(v_data)
-            if qa_rag:
-                rag_text += f"[Q&A]\n{qa_rag}"
-        elif source == "paper":
-            paper_rag = RAGService.get_rag_data(v_data)
-            if paper_rag:
-                rag_text += f"[Paper]\n{paper_rag}"
+    rag_data = RAGService.get_rag_data(v_data, sources)
 
-    if rag_text:
-        rag_text = """
-                System
-
-                You are a medical AI assistant.
-
-                Answer the user's question using the retrieved context as the primary source of information.
-
-                If the retrieved context is insufficient, explicitly state that the available information is insufficient instead of making up facts.
-
-                Always answer in Korean.\n\n
-                """.strip() + rag_text
-
-    return rag_text
+    return rag_data
 
 class ChatService:
 
