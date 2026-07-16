@@ -1,6 +1,6 @@
-# InsightDocs (EDMS)
+# EDMS
 
-InsightDocs는 문서를 업로드해 OCR로 텍스트를 추출하고, 요약·태그·임베딩을 생성한 뒤 문서 기반 질의응답(RAG)을 제공하는 전자문서 관리 시스템입니다.
+EDMS는 문서를 업로드해 OCR로 텍스트를 추출하고, 요약·태그·임베딩을 생성한 뒤 문서 기반 질의응답(RAG)을 제공하는 전자문서 관리 시스템입니다.
 
 ASP.NET Core 8 및 Blazor Server를 중심으로 구성되어 있으며, MySQL에는 문서/채팅 메타데이터를, Qdrant에는 문서 청크 임베딩을 저장합니다. LLM·VLM·임베딩 생성은 Ollama의 OpenAI 호환 API와 Semantic Kernel을 통해 처리합니다.
 
