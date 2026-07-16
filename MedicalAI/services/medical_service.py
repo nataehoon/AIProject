@@ -52,30 +52,33 @@ def _find_body_part(total_slices: int, target_modality: str, pixel_buffers):
                 plt.close()
 
     if images_payload_array:
-        vlm_prompt = """# Role & Context
-                        You are an expert clinical image classifier. Your sole task is to analyze the provided sequential anatomical slice images and accurately classify which joint of the extremities is being imaged.
+        vlm_prompt = """Role & Context
+                        You are an expert clinical image classifier. Your sole task is to analyze the provided sequential anatomical slice images and accurately classify which joint or region of the extremities/axial skeleton is being imaged.
 
-                        # Classification Target (body_part)
+                        Classification Target (body_part)
                         Classify the scan into exactly one of the following uppercase categories:
-                        - `SHOULDER` (Look for the humeral head, glenoid cavity, clavicle, or acromion)
-                        - `KNEE` (Look for the femur, tibia, patella, meniscus, or cruciate ligaments)
-                        - `HIP` (Look for the femoral head, acetabulum, or pelvis)
-                        - `ANKLE` (Look for the talus, tibia, fibula, or achilles tendon)
-                        - `WRIST` (Look for the radius, ulna, carpal bones, or TFCC)
-                        - `UNKOWN` (Use this if the anatomy does not clearly belong to any of the five joints above)
 
-                        # Strict Formatting & Output Rules (Structured Output)
-                        You must populate the JSON response properties exactly as defined below. Do not include any other markdown formatting or extra fields outside this schema:
+                        SHOULDER (Look for the humeral head, glenoid cavity, clavicle, or acromion)
 
-                        1. **`body_part`** (String, Enum):
-                        - Set this property to exactly one of the uppercase strings: `["SHOULDER", "KNEE", "HIP", "ANKLE", "WRIST", "UNKOWN"]`.
+                        KNEE (Look for the femur, tibia, patella, meniscus, or cruciate ligaments)
 
-                        2. **`report_text`** (String):
-                        - Do not write a comprehensive medical report. 
-                        - Instead, write a single concise sentence explaining the visual evidence used for your classification. (e.g., "Identified the humeral head articulating with the glenoid cavity, confirming a shoulder scan.")
+                        HIP (Look for the femoral head, acetabulum, or pelvis)
 
-                        # Input Data
-                        - A representative sample of sequential slice images from the scan.
+                        ANKLE (Look for the talus, tibia, fibula, or achilles tendon)
+
+                        WRIST (Look for the radius, ulna, carpal bones, or TFCC)
+
+                        SPINE (Look for vertebrae, intervertebral discs, spinal cord, or vertebral canal)
+
+                        UNKOWN (Use this if the anatomy does not clearly belong to any of the categories above)
+
+                        Strict Formatting & Output Rules
+                        Output ONLY the classification category string (e.g., SHOULDER, SPINE, etc.).
+
+                        Do NOT include JSON formatting, markdown code blocks, explanation, or any extra text. Your entire response must consist of exactly one word from the target list.
+
+                        Input Data
+                        A representative sample of sequential slice images from the scan.
                         """.strip()
 
         chatMessage = [{"role": "user", "content": vlm_prompt, "images": images_payload_array}]
@@ -92,6 +95,7 @@ def _vlm_detail_research(total_slices: int, target_modality: str, body_part: str
     batch_size = 20
     overlap = 5
     step = batch_size - overlap
+    # vlm_text = f"[Infomation]\n\nmodality: {target_modality}\n"
     vlm_text = ""
     for start in range(0, total_slices, step):
         if start + overlap >= total_slices and start > 0:
@@ -125,50 +129,54 @@ def _vlm_detail_research(total_slices: int, target_modality: str, body_part: str
                 if 'plt' in locals() or 'plt' in globals():
                     plt.close()
 
-        research_prompt = f"""# Role & Context
-                            You are an expert clinical image analyst with performance matching a senior neuroradiologist and musculoskeletal radiologist. Your task is to conduct a highly detailed, systematic review of the provided 20 sequential slice images, detect any subtle abnormalities or structural pathologies, and generate a comprehensive clinical reading report. Use precise anatomical terminology and base your reasoning strictly on visual evidence.
+        # research_prompt = f"""[IMPORTANT INSTRUCTION]: You are a professional radiologist.
+        # Do not output any chain-of-thought or internal monologues.
+        # Output ONLY the final formal comprehensive medical report text draft.
+        # [Patient Medical Metadata Context]
+        # This is a specific cross-sectional layer ({start}~{end}) from the MRI volume. Please cross-analyze the condition of the rotator cuff tendons.
+        # Cross-reference and integrate the images from each index above to compose a detailed draft of the comprehensive medical report.
+        #                     """.strip()
 
-                            # Specifications
-                            - Target Anatomy: `"{body_part}"`
+        research_prompt = f"""
+                            # Role & Context
+                            You are a professional radiologist. Your task is to analyze the provided anatomical data (or previous raw report segments) and extract ONLY the precise clinical findings to output a highly condensed summary.
 
-                            # Rules
-                            - Evaluate if there are any clinically significant abnormalities across these 20 slices.
-                            - If NO abnormalities are detected, output EXACTLY the phrase `"No issues"` and absolutely nothing else.
-                            - If ANY abnormality is detected, generate a detailed report using the "Report Structure" below.
+                            # Rules (CRITICAL)
+                            - Do NOT copy the placeholder examples in the brackets. You must replace them with ACTUAL clinical findings from the given image data.
+                            - Do NOT write a long, comprehensive medical report.
+                            - Do NOT output any chain-of-thought, introduction, or outro.
+                            - Output ONLY the structured block below.
 
-                            # Report Structure (ONLY if an abnormality is detected)
+                            # Output Template
+                            [Information]
+                            Modality: {target_modality}
+                            Slices: {start}~{end}
+                            BodyPart: {body_part}
 
-                            ### 1. Overview & Image Specifications
-                            - **Target Anatomy:** <BODY_PART_PLACEHOLDER>
-                            - **Quality Assessment:** (Describe the clarity and spatial coverage of these 20 slices relative to the target anatomy)
+                            [CRITICAL RULE FOR CR/X-RAY]
+                            If the detected modality is CR (X-ray), you MUST NOT describe soft-tissue details such as "tendon tears", "edema", "effusion", or "slices". Instead, limit your report to osseous structures, joint space narrowing, and alignment. Describing soft tissue on CR will be penalized as a fatal medical hallucination.
 
-                            ### 2. Slice-by-Slice Detailed Analysis
-                            - **Slices [Start Index] to [End Index]:** Within normal limits. No significant structural abnormality or signal change detected.
-                            - **Slice [Specific Index]:** 
-                            - **Anatomical Landmark:** (e.g., Supraspinatus tendon, anterior horn of lateral meniscus, etc.)
-                            - **Pathological Findings:** (Detailed signal intensity/density alterations, morphological tears, swelling, or bone marrow edema)
-                            - **Spatial Continuity:** (Describe if this lesion connects or trend toward the boundary slices)
-
-                            ### 3. Key Pathological Findings
-                            1. **Localization & Dimensions:** (Specify the exact anatomical location and size/severity of the lesion/tear)
-                            2. **Characteristics:** (Margin definition, presence of surrounding fluid accumulation, joint effusion, or mechanical compression)
-
-                            ### 4. Clinical Impressions & Recommendations
-                            - **Primary Impression:** (Most likely diagnosis)
-                            - **Secondary Impression (Differential Diagnosis):** (Alternative pathologies to consider)
-                            - **Recommended Next Steps:** (e.g., Contrast-enhanced evaluation, clinical correlation, or specific follow-up interval)
+                            [Clinical Impression]
+                            - Primary Structures: [State the condition of the main target structures for this anatomy (e.g., Supraspinatus for Shoulder, Meniscus/ACL for Knee, Discs for Spine, Labrum for Hip, TFCC for Wrist, Achilles/Ligaments for Ankle). Specify any tears, herniation, or degeneration. If pristine, state "Intact/Normal".]
+                            - Secondary/Supporting Structures: [State the condition of surrounding ligaments, tendons, or minor muscles. Specify any abnormalities or state "Intact".]
+                            - Key Associated Findings: [State key associated findings like bursitis, joint effusion, fluid collection, bone marrow edema, osteophytes/bony spurs, or canal stenosis. If none, state "None".]
+                            - Overall Conclusion: [State the final core diagnosis based on this slice range, and choose exactly one treatment category from: Normal / Conservative / Surgical Evaluation]
                             """.strip()
         
         research_dicom = [{"role": "user", "content": research_prompt, "images": batch_images}]
         vlm_response = run_vlm_generator(research_dicom)
 
+        # vlm_text += f"slices: {start}~{end}\n\n"
+        research_text = ""
         for chunk in vlm_response:
             if chunk:
-                vlm_text += chunk
+                research_text += chunk
+        vlm_text += f"{research_text}\n\n"
+        print(f"research_text: {research_text}")
         
     if vlm_text:
-        print(vlm_text)
-        return vlm_text
+        print(f"vlm_text: {vlm_text}")
+        yield vlm_text
     
 class MedicalService:
     @staticmethod
@@ -271,13 +279,15 @@ class MedicalService:
                     raise ValueError("전송받은 픽셀 버퍼 내에 슬라이스가 존재하지 않습니다.")
 
                 if body_part == "UNKNOWN":
-                    medi_info.body_part = _find_body_part(total_slices, target_modality, pixel_buffers)
+                    yield {"status": "문서 안에 환부 정보가 없어 환부 정보를 추론 합니다..."}
+                    body_part = _find_body_part(total_slices, target_modality, pixel_buffers)
+                    medi_info.body_part = body_part
                     print(f"body_part: {body_part}")
 
                 for chunk in _vlm_detail_research(total_slices, target_modality, body_part, pixel_buffers):
                     if isinstance(chunk, dict):
                         yield chunk
-                    elif isinstance(chunk, str):
+                    else:
                         vlm_report += chunk
 
             print(f"vlm_report: {vlm_report}")

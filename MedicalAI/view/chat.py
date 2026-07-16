@@ -23,11 +23,7 @@ if "summary_chat_data" not in st.session_state:
 if "is_processing" not in st.session_state:
     st.session_state.is_processing = False
 
-st.title("MedicalAI 전문의 메디컬 어시스턴트")
-st.caption("본 공간은 임상 쿼리, 논문 레퍼런스 및 환자 차트 데이터 분석을 지원하는 전용 AI 인터페이스 입니다.")
-st.divider()
-
-chat_viewport = st.container(height=550, border=False)
+chat_viewport = st.container(height=670, border=False)
 
 with chat_viewport:
     for message in st.session_state.global_chat_history:
