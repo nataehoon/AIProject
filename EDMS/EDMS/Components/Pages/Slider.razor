@@ -1,0 +1,29 @@
+﻿@page "/Slider"
+
+<div class="slider @(IsOpen ? "open" : "")">
+    @* <button class="pdf-btn" @onclick="ToggleSlider">X</button> *@
+    <TelerikToggleButton @bind-Selected="@IsOpen" Class="pdf-btn tooltip-target"
+                         Rounded="@ThemeConstants.Button.Rounded.Medium"
+                         Size="@ThemeConstants.Button.Size.Medium"
+                         ThemeColor="@ThemeConstants.Button.ThemeColor.Error"
+                         Title="PDF Viewer"
+                         Icon="@( IsOpen ? @SvgIcon.ChevronRight : @SvgIcon.FilePdf )"
+                         OnClick="@ToggleSlider">
+    </TelerikToggleButton>
+
+    <div class="content">
+        @ChildContent
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public RenderFragment ChildContent { get; set; }
+
+    private bool IsOpen { get; set; }
+
+    public void ToggleSlider()
+    {
+        IsOpen = !IsOpen;
+    }
+}

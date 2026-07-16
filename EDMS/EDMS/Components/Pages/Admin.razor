@@ -1,0 +1,201 @@
+﻿@page "/admin"
+
+@using Qdrant.Client
+
+@implements IAsyncDisposable
+
+@inject QdrantClient qdrant
+
+@if (!Loaded)
+{
+    
+}
+else
+{
+    <div class="file-manager">
+        <TelerikFileManager Height="100%"
+                            @bind-Path="@DirectoryPath"
+                            Data="@fileList"
+                            OnModelInit="@OnModelInitHandler"
+                            SelectedItems="@selectedRows"
+                            SelectedItemsChanged="@((IEnumerable<FileManageDTO> selectedItems) => OnClicked(selectedItems))">
+            <FileManagerSettings>
+                <FileManagerUploadSettings SaveUrl="@baseUri"
+                                           AllowedExtensions="@AllowedFileTypes"
+                                           MaxFileSize="@MaxFileSize"
+                                           Multiple="true"
+                                           OnUpload="@UploadHandler">
+                </FileManagerUploadSettings>
+            </FileManagerSettings>
+            <FileManagerToolBar>
+                <FileManagerToolBarSearchTool></FileManagerToolBarSearchTool>
+                <FileManagerToolBarUploadTool></FileManagerToolBarUploadTool>
+                <FileManagerToolBarCustomTool>
+                    <TelerikButton OnClick="@(() => IsHigh = !IsHigh)"
+                                   Class="tooltip-target"
+                                    Title="고사양 VLM">@IsHigh</TelerikButton>
+                </FileManagerToolBarCustomTool>
+                <FileManagerToolBarFileViewTool></FileManagerToolBarFileViewTool>
+                <FileManagerToolBarViewDetailsTool></FileManagerToolBarViewDetailsTool>
+            </FileManagerToolBar>
+        </TelerikFileManager>
+    </div>
+    <div>
+        @foreach (var item in uploadingInfo.Keys)
+        {
+            <div style="margin-left:2%">@($"파일 이름 : {item} / {uploadingInfo[item].Content}")</div>
+        }
+    </div >
+}
+
+@code {
+    private HubConnection? hubConnection;
+    private Dictionary<string, UploadStatusDTO> uploadingInfo { get; set; } = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        hubConnection = new HubConnectionBuilder()
+            .WithUrl(navManager.ToAbsoluteUri("/fileProcessingHub"))
+            .Build();
+
+        // 실시간으로 진행상황 수신
+        hubConnection.On<Dictionary<string, UploadStatusDTO>>("ProgressInfo", (data) =>
+        {
+            uploadingInfo = data;
+
+            foreach (var item in data.Keys)
+            {
+                var currFile = fileList.FirstOrDefault(x => x.Id == data[item].FileId);
+                if (currFile != null)
+                {
+                    currFile.Name = $"{data[item].Content} - {item}";
+                    continue;
+                }
+
+                FileManageDTO uploadingFile = new();
+                uploadingFile.Id = data[item].FileId;
+                uploadingFile.ParentId = fileList.FirstOrDefault(x => x.Path == data[item].Path)?.Id;
+                uploadingFile.Name = $"{data[item].Content} - {item}";
+                uploadingFile.Size = data[item].Size;
+                uploadingFile.Extension = data[item].Extension;
+                uploadingFile.IsDirectory = false;
+                uploadingFile.HasDirectories = false;
+                uploadingFile.DateCreated = DateTime.Now;
+                uploadingFile.DateCreatedUtc = DateTime.UtcNow;
+                uploadingFile.DateModified = DateTime.Now;
+                uploadingFile.DateModifiedUtc = DateTime.UtcNow;
+
+                fileList.Add(uploadingFile);
+            }
+
+            InvokeAsync(StateHasChanged);
+
+        });
+
+        await hubConnection.StartAsync();
+        await hubConnection.SendAsync("JoinGroup");
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (hubConnection != null)
+            await hubConnection.DisposeAsync();
+    }
+
+    private string DirectoryPath { get; set; }
+    private List<FileManageDTO> fileList = new();
+    private bool Loaded { get; set; }
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            DirectoryPath = Path.Combine(env.WebRootPath, "uploads");
+
+            var client = clientInfo.CreateClient();
+
+            var response = await client.PostAsJsonAsync($"{navManager.BaseUri}api/GetFileList", DirectoryPath);
+            if (response.IsSuccessStatusCode)
+            {
+                fileList = await response.Content.ReadFromJsonAsync<List<FileManageDTO>>() ?? new();
+            }
+            else
+            {
+                string errorMsg = await response.Content.ReadAsStringAsync();
+                Console.WriteLine($"API실패 [에러]: {errorMsg}");
+            }
+
+            Loaded = true;
+
+            StateHasChanged();
+        }
+    }
+
+    private FileManageDTO OnModelInitHandler()
+    {
+        var item = new FileManageDTO();
+        item.Name = $"New folder";
+        item.Size = 0;
+        item.Path = Path.Combine(DirectoryPath, item.Name);
+        item.IsDirectory = true;
+        item.HasDirectories = false;
+        item.Extension = string.Empty;
+        item.DateCreated = DateTime.Now;
+        item.DateCreatedUtc = DateTime.Now;
+        item.DateModified = DateTime.Now;
+        item.DateModifiedUtc = DateTime.Now;
+
+        return item;
+    }
+
+    private IEnumerable<FileManageDTO> selectedRows { get; set; } = Enumerable.Empty<FileManageDTO>();
+    private FileManageDTO uploadPath { get; set; }
+    private async Task OnClicked(IEnumerable<FileManageDTO> items)
+    {
+        try
+        {
+            selectedRows = items;
+            var selectedItem = items.FirstOrDefault();
+
+            if (selectedItem == null) return;
+
+            if (selectedItem.IsDirectory)
+            {
+                uploadPath = selectedItem;
+            }
+            else
+            {
+                uploadPath = fileList.FirstOrDefault(x => x.Id == selectedItem.ParentId);
+            }
+
+            Console.WriteLine(JsonSerializer.Serialize(uploadPath));
+        }
+        catch(Exception ex)
+        {
+            Console.WriteLine(ex.Message);
+        }
+    }
+
+    private string baseUri => ToAbsoluteUrl("api/FileUpload");
+    private List<string> AllowedFileTypes { get; set; } = new List<string>() { ".jpg", ".jpeg", ".png", ".pdf", ".doc", ".xls", ".xlsx" };
+    private int MaxFileSize { get; set; } = 300 * 1024 * 1024; // 100 MB
+
+    private string ToAbsoluteUrl(string path)
+    {
+        return navManager.BaseUri + path;
+    }
+
+    private bool IsHigh { get; set; }
+    private async Task UploadHandler(UploadEventArgs args)
+    {
+        try
+        {
+            args.RequestData["isHigh"] = IsHigh.ToString().ToLower();
+            args.RequestData["uploadPath"] = uploadPath?.Path ?? DirectoryPath;
+            args.RequestData["fileId"] = Guid.NewGuid().ToString();
+        }
+        catch(Exception ex)
+        {
+            Console.WriteLine(ex.Message);
+        }
+    }
+}

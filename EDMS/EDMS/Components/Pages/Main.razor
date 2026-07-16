@@ -1,0 +1,264 @@
+﻿@page "/main"
+
+@if (!Loaded)
+{
+    
+}
+else
+{
+    <div class="app-container">
+        <div class="sidebar" style="@(isSidebarCollapsed ? "width: 60px;" : "width: 250px;")">
+            <button class="toggle-button" @onclick="ToggleSidebar">
+                @if (isSidebarCollapsed)
+                {
+                    <img src="images/InsightDocs_Logo.png" style="height: 50px;" />
+                }
+                else
+                {
+                    <img src="images/InsightDocs_Logo.png" style="height: 50px;" />
+                }
+            </button>
+            <nav>
+                <ul>
+                    <li>
+                        <TelerikButton Icon="SvgIcon.Comment"
+                            ThemeColor="@(ThemeConstants.Button.ThemeColor.Inverse)" 
+                            FillMode="@(ThemeConstants.Button.FillMode.Flat)"
+                            Size="@(ThemeConstants.Button.Size.Small)"
+                            Class="left-btn" 
+                            Title="Assistant" 
+                            OnClick="MovetoAssistant">
+                            @* <img class="icon" src="images/Icon/ai.png" /> *@
+                            @if (!isSidebarCollapsed)
+                            {
+                                <span class="menu-text"> &nbsp; Assistant</span>
+                            }
+                        </TelerikButton>
+                    </li>
+                    <li>
+                        <TelerikButton Icon="SvgIcon.Book"
+                            ThemeColor="@(ThemeConstants.Button.ThemeColor.Inverse)"
+                            FillMode="@(ThemeConstants.Button.FillMode.Flat)"
+                                       Size="@(ThemeConstants.Button.Size.Small)"
+                            Class="left-btn" 
+                            Title="Dashboard" 
+                            OnClick="MovetoLib">
+                            @* <img class="icon" src="images/Icon/folder.png" /> *@
+                            @if (!isSidebarCollapsed)
+                            {
+                                <span class="menu-text"> &nbsp; 라이브러리</span>
+                            }
+                        </TelerikButton>
+                    </li>
+                    <hr style="margin: 10px; align-items: center; justify-content: center; color: #6D6D6D" />
+                    @if (!isSidebarCollapsed)
+                    {
+                        @if (pageInfo == "chat")
+                        {
+                            <li>
+                                <TelerikButton Icon="SvgIcon.Plus"
+                                    Class="tooltip-target w-100" 
+                                    Title="새로운 질문을 시작합니다."
+                                    OnClick="@NewChat" 
+                                    FillMode="@ThemeConstants.Button.FillMode.Flat" 
+                                    Rounded="@ThemeConstants.Button.Rounded.Large" 
+                                    Size="@ThemeConstants.Button.Size.Medium" 
+                                    ThemeColor="@ThemeConstants.Button.ThemeColor.Base">
+                                    @* <img class="icon" src="images/Icon/chatAi.png" /> *@ 새 채팅
+                                </TelerikButton>
+                            </li>
+                            @foreach(var item in roomList)
+                            {
+                                <li style="margin-bottom:-4%">
+                                    <TelerikButton OnClick="@(async () => await OnClickHistory(item))"
+                                                    Class="left-btn"
+                                                    FillMode="@(ThemeConstants.Button.FillMode.Flat)">
+                                        @if (!string.IsNullOrEmpty(item.Title))
+                                        {
+                                            @item.Title
+                                        }
+                                        else
+                                        {
+                                            <span>제목 없음</span>
+                                        }
+                                    </TelerikButton>
+                                </li>
+                            }
+                        }
+                        else if (pageInfo == "library")
+                        {
+                            <li>
+                                <span style="font-weight:bolder">주제별</span>
+                            </li>
+                        }
+                    }
+                </ul>
+            </nav>
+            @if (pageInfo == "library")
+            {
+                <ul>
+
+                    <li>
+                        test
+                    </li>
+                </ul>
+            }
+            
+            <footer class="sidebar-footer">
+                <TelerikButton ThemeColor="@(ThemeConstants.Button.ThemeColor.Inverse)" FillMode="@(ThemeConstants.Button.FillMode.Flat)"
+                               Class="tooltip-target" Title="Configurations" OnClick="MovetoConfigurations">
+                    <img class="icon" src="images/Icon/32/manufacturing-process-1-gear.png" />
+                    @if (!isSidebarCollapsed)
+                    {
+                        <span class="menu-text"> &nbsp; Configurations</span>
+                    }
+                </TelerikButton>
+            </footer>
+        </div>
+        <div class="main-content" style="flex: 1;">
+            @if (pageInfo == "chat")
+            {
+                <Chat selectedRoom="@selectedRoom" @key="@selectedRoom"></Chat>
+            }
+            else if (pageInfo == "library")
+            {
+
+                <Library fileList="@fileList"></Library>
+            }
+            else if (pageInfo == "admin")
+            {
+                <Admin></Admin>
+            }
+        </div>
+    </div>
+}
+
+@code {
+
+    private bool Loaded { get; set; }
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if(firstRender)
+        {
+            await LoadData();
+
+            Loaded = true;
+
+            StateHasChanged();
+        }
+    }
+
+    private async Task LoadData()
+    {
+        try
+        {
+            await GetRoomList();
+        }
+        catch(Exception ex)
+        {
+            Console.WriteLine(ex.Message);
+        }
+    }
+
+    private List<ChatRoom> roomList = new();
+    private async Task GetRoomList()
+    {
+        try
+        {
+            var result = await APIService.PostAPI($"{navManager.BaseUri}", "api/GetChatRoomList", "admin");
+
+            if (result == "error")
+            {
+                Console.WriteLine("채팅룸 리스트를 가져오는 도중 에러가 발생하였습니다.");
+                return;
+            }
+            else if (string.IsNullOrEmpty(result))
+            {
+                Console.WriteLine("채팅룸이 없습니다.");
+                return;
+            }
+
+            roomList = JsonSerializer.Deserialize<List<ChatRoom>>(result) ?? new();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex.Message);
+        }
+    }
+
+    private ChatRoom selectedRoom { get; set; } = new();
+    private async Task OnClickHistory(ChatRoom value)
+    {
+        try
+        {
+            selectedRoom = value;
+        }
+        catch(Exception ex)
+        {
+            Console.WriteLine(ex.Message);
+        }
+    }
+
+    private async Task NewChat()
+    {
+        try
+        {
+            selectedRoom = new();
+        }
+        catch(Exception ex)
+        {
+            Console.WriteLine(ex.Message);
+        }
+    }
+
+    private bool isSidebarCollapsed { get; set; }
+    private string pageInfo { get; set; } = "chat";
+
+    private async Task ToggleSidebar()
+    {
+        isSidebarCollapsed = !isSidebarCollapsed;
+    }
+
+    private async Task MovetoAssistant()
+    {
+        pageInfo = "chat";
+    }
+    private async Task MovetoLib()
+    {
+        await GetDoc();
+        pageInfo = "library";
+    }
+
+    private List<DocFileInfo> fileList { get; set; } = new();
+    private async Task GetDoc()
+    {
+        try
+        {
+            var result = await APIService.PostAPI($"{navManager.BaseUri}", "api/GetDocList", null);
+
+            if (result == "error")
+            {
+                Console.WriteLine("파일 리스트를 가져오는 중 문제가 발생했습니다.");
+                return;
+            }
+            else if(string.IsNullOrEmpty(result))
+            {
+                Console.WriteLine("파일 리스트가 없습니다.");
+                return;
+            }
+
+            fileList = JsonSerializer.Deserialize<List<DocFileInfo>>(result) ?? new();
+            fileList = fileList.OrderByDescending(x => x.CreateAt).ToList();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex.Message);
+        }
+    }
+
+    private async Task MovetoConfigurations()
+    {
+        pageInfo = "admin";
+    }
+
+}

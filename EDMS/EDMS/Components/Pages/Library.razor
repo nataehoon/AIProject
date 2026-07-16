@@ -1,0 +1,311 @@
+﻿@page "/library"
+@using System.Globalization
+@using EDMS.Components.Models.Entity
+
+@inject IJSRuntime JS
+
+<div class="pdf-body">
+    <div class="content-container">
+        <div class="row doc-header col-md-12">
+            <div class="col-md-6 doc-title">
+                <h5 style="font-weight:bolder">문서 통합검색</h5>
+                @if (fileList == null)
+                {
+                    <p>데이터를 불러오는 중입니다...</p>
+                }
+                else
+                {
+                    <p>검색자료 <span style="color: royalblue; font-weight:600">(@fileList.Count 건)</span></p>
+                }
+            </div>
+            <div class="col-md-6 search-box">
+                <span @onkeydown="@Enter">
+                    <TelerikTextBox @bind-Value="@SearchText" Width="350px"
+                                    Placeholder="검색어를 입려하세요."
+                                    ShowPrefixSeparator="@ShowPrefixSeparator"
+                                    Rounded="@ThemeConstants.TextBox.Rounded.Large"
+                                    Size="@ThemeConstants.TextBox.Size.Large">
+                        <TextBoxPrefixTemplate>
+                            <TelerikSvgIcon Icon="@SvgIcon.PaperPlane"></TelerikSvgIcon>
+                        </TextBoxPrefixTemplate>
+                    </TelerikTextBox>
+                    <TelerikButton Icon="@SvgIcon.Search" OnClick="@(() => TextSearch(SearchText))"
+                                   FillMode="@ThemeConstants.Button.FillMode.Solid"
+                                   Rounded="@ThemeConstants.Button.Rounded.Large"
+                                   ThemeColor="@ThemeConstants.Button.ThemeColor.Primary"
+                                   Size="@ThemeConstants.Button.Size.Large"> 검색</TelerikButton>
+                </span>
+            </div>
+        </div>
+        @if (fileList.Any())
+        {
+            <TelerikListView Data=@fileList Pageable="true" PageSize="20">
+                <Template>
+                    <div class="pdf-list">
+                        <div class="row pdf-body col-md-12">
+                            <div class="col-md-2 pdf-item">
+                                <div class="col-md-2 pdf-item" @onmouseover="async () => await ShowButtons(context.FileName)" @onmouseout="async () => await HideButtons(context.FileName)">
+                                    <canvas id="canvas_@context.FileName" class="pdf-canvas"></canvas>
+                                    <div class="navigation-buttons" id="buttons_@context.FileName">
+                                        <TelerikButton OnClick="@(async () => await PrevPage(context.FileName))" FillMode="@(ThemeConstants.Button.FillMode.Outline)">&#60;</TelerikButton>
+                                        <TelerikButton OnClick="@(async () => await NextPage(context.FileName))" FillMode="@(ThemeConstants.Button.FillMode.Outline)">&#62;</TelerikButton>
+                                        @* <button @onclick="() => PrevPage(context.FileName)">&#60;</button>
+                                        <button @onclick="() => NextPage(context.FileName)">&#62;</button> *@
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="pdf-content col-md-10">
+                                <div class="pdf-title">@context.Title</div>
+                                <div class="pdf-text">@TruncateWithEllipsis(context.MainText)</div>
+                                <div class="pdf-btn pdf-btn-right">
+                                    <TelerikButton OnClick="@(() => DownloadDoc(context.FilePath, context.FileName))"
+                                                    Icon="@SvgIcon.Download"
+                                                    Class="tooltip-target"
+                                                    Title="원문 다운로드"
+                                                    Rounded="@ThemeConstants.Button.Rounded.Small"
+                                                    Size="@ThemeConstants.Button.Size.Medium"
+                                                    ThemeColor="@(ThemeConstants.Button.ThemeColor.Base)"
+                                                    FillMode="@ThemeConstants.Button.FillMode.Solid">
+                                        원문다운로드
+                                    </TelerikButton>
+                                    <TelerikButton OnClick="@(() => OpenPDFViewef(context.FileName, context.FilePath))"
+                                                    Icon="@SvgIcon.Eye"
+                                                    Class="tooltip-target"
+                                                    Title="원문 미리보기"
+                                                    Rounded="@ThemeConstants.Button.Rounded.Small"
+                                                    Size="@ThemeConstants.Button.Size.Medium"
+                                                    ThemeColor="@(ThemeConstants.Button.ThemeColor.Base)"
+                                                    FillMode="@ThemeConstants.Button.FillMode.Solid">
+                                        미리보기
+                                    </TelerikButton>
+                                    <TelerikButton Icon="@SvgIcon.Save" Class="tooltip-target" Title="파일 크기"
+                                                    Rounded="@ThemeConstants.Button.Rounded.Small"
+                                                    Size="@ThemeConstants.Button.Size.Medium"
+                                                    ThemeColor="@(ThemeConstants.Button.ThemeColor.Base)"
+                                                    FillMode="@ThemeConstants.Button.FillMode.Flat">
+                                        @context.FileSize.ToString("N0", CultureInfo.InvariantCulture) Kb
+                                    </TelerikButton>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <hr />
+                </Template>
+            </TelerikListView>
+        }
+        else
+        {
+            <div>
+                <span class="center">등록된 문서가 없습니다.</span>
+            </div>
+        }
+    </div>
+</div>
+
+<Slider @ref="slider">
+    <div class="row col-md-12">
+        <div class="col-md-10">
+            <h4> PDF Viewer</h4>
+            <p>좌측 리스트의 pdf 파일 선택하거나 PC 내 파일을 불러올 수 있습니다.</p>
+        </div>
+        <div class="col-md-2" style="margin-top: auto; margin-bottom: 10px;">
+            @* PDF Viewer Closed *@
+            <TelerikButton Icon="@SvgIcon.Logout" OnClick="ClosePDFViewer"
+                           FillMode="@ThemeConstants.Button.FillMode.Flat"
+                           Rounded="@ThemeConstants.Button.Rounded.Medium"
+                           Size="@ThemeConstants.Button.Size.Medium">Close</TelerikButton>
+        </div>
+    </div>
+
+    <TelerikPdfViewer @ref="@PdfViewerRef"
+                      Width="100%" Zoom="1"
+                      Height="800px"
+                      Data="@FileData">
+        <PdfViewerToolBar>
+            <PdfViewerToolBarSearchTool />
+            <PdfViewerToolBarDownloadTool />
+            <PdfViewerToolBarOpenTool />
+            <PdfViewerToolBarPrintTool />
+            <PdfViewerToolBarSeparator />
+
+            <PdfViewerToolBarPagerTool />
+            <PdfViewerToolBarSeparator />
+
+            <PdfViewerToolBarZoomTool />
+        </PdfViewerToolBar>
+    </TelerikPdfViewer>
+</Slider>
+
+@code{
+    [CascadingParameter] public DialogFactory Dialogs { get; set; }
+    [Parameter] public List<DocFileInfo> fileList { get; set; }
+
+    private bool ShowPrefixSeparator { get; set; } = true;
+    private string SearchText = string.Empty;
+
+    private bool Loaded { get; set; }
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+
+        Loaded = true;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            foreach (var pdfFile in fileList)
+            {
+                // pdfFile 객체 내부의 FileName도 null일 수 있으므로 안전하게 처리
+                if (!string.IsNullOrEmpty(pdfFile.FileName))
+                {
+                    await JS.InvokeVoidAsync("pdfPreview.showPdf",
+                        $"uploads/{pdfFile.FileName}",
+                        $"canvas_{pdfFile.FileName}");
+                }
+            }
+        }
+    }
+
+    private async Task LoadData()
+    {
+        try
+        {
+            
+        }
+        catch(Exception ex)
+        {
+            Console.WriteLine(ex.Message);
+        }
+    }
+
+    private async void Enter(KeyboardEventArgs e)
+    {
+        if (e.Code == "Enter" || e.Code == "NumpadEnter")
+        {
+            await TextSearch(SearchText);
+        }
+    }
+
+    private async Task TextSearch(string text)
+    {
+        try
+        {
+            if (string.IsNullOrEmpty(text) || text.Length < 2)
+            {
+                await Dialogs.AlertAsync("검색어는 최소 2글자 이상 작성해야 합니다.");
+                return;
+            }
+
+            // FileList = DocService.GetFullTextSearch(text);
+            StateHasChanged();
+
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex.ToString());
+        }
+    }
+
+    private string TruncateWithEllipsis(string str)
+    {
+        try
+        {
+            // 최대 길이를 설정
+            int maxLength = 300;
+
+            if (string.IsNullOrEmpty(str) || maxLength <= 0)
+                return string.Empty;
+
+            // 문자열 길이가 최대 길이보다 작거나 같으면 그대로 반환
+            if (str.Length <= maxLength)
+                return str;
+
+            // 말줄임표를 포함한 최대 길이로 자르기
+            return str.Substring(0, maxLength - 3) + "...";
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex.ToString());
+            return null;
+        }
+    }
+
+    private bool isPdfView = false;
+    private Slider slider;
+    private async Task OpenPDFViewef(string fileName, string filePath)
+    {
+        await PdfLoad(fileName, filePath);
+
+        isPdfView = !isPdfView;
+        slider.ToggleSlider();
+    }
+
+    private void ClosePDFViewer()
+    {
+        // isSplit = false;
+        slider.ToggleSlider();
+        isPdfView = false;
+
+        // pdfStyle = "width: 60px; text-align: right;";
+    }
+
+    public TelerikPdfViewer PdfViewerRef { get; set; }
+    public byte[] FileData { get; set; }
+    private async Task PdfLoad(string fileName, string filePath)
+    {
+        try
+        {
+            FileData = Array.Empty<byte>();
+
+            // PDF 파일을 바이트 배열로 읽기
+            byte[] pdfBytes = System.IO.File.ReadAllBytes(filePath);
+
+            // 바이트 배열을 Base64 문자열로 변환
+            string base64String = Convert.ToBase64String(pdfBytes);
+
+            var fileBytes = Convert.FromBase64String(base64String);
+
+            FileData = fileBytes;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex.ToString());
+        }
+    }
+
+    private async Task DownloadDoc(string path, string fileName)
+    {
+        try
+        {
+            var fileStream = System.IO.File.OpenRead(path);
+            using var streamRef = new DotNetStreamReference(stream: fileStream);
+            await JS.InvokeVoidAsync("downloadFileFromStream", fileName, streamRef);
+        }
+        catch(Exception ex)
+        {
+            Console.WriteLine(ex.Message);
+        }
+    }
+
+    private async Task ShowButtons(string pdfFile)
+    {
+        await JS.InvokeVoidAsync("pdfPreview.showButtons", $"buttons_{pdfFile}");
+    }
+
+    private async Task HideButtons(string pdfFile)
+    {
+        await JS.InvokeVoidAsync("pdfPreview.hideButtons", $"buttons_{pdfFile}");
+    }
+
+    private async Task NextPage(string pdfFile)
+    {
+        await JS.InvokeVoidAsync("pdfPreview.nextPage", $"uploads/{pdfFile}");
+    }
+
+    private async Task PrevPage(string pdfFile)
+    {
+        await JS.InvokeVoidAsync("pdfPreview.prevPage", $"uploads/{pdfFile}");
+    }
+}

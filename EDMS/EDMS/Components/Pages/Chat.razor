@@ -1,0 +1,280 @@
+﻿@page "/chat"
+
+@if (!Loaded)
+{
+    
+}
+else
+{
+    <div class="chat-wrapper-fixed">
+        <main class="chat-container">
+            <div class="message-list">
+                @foreach (var msg in Messages)
+                {
+                    <div class="message-row @(msg.IsUser ? "user" : "ai")">
+                        <div>
+                            @if (msg.IsUser)
+                            {
+                                <img src="images/boy.png" style="height: 30px;" />
+                            }
+                            else
+                            {
+                                <img src="images/ai.png" style="height: 30px;" />
+                            }
+                        </div>
+                        <div class="bubble">
+                            @if (msg.IsUser)
+                            {
+                                @msg.Content
+                            }
+                            else
+                            {
+                                @((MarkupString)Markdig.Markdown.ToHtml(msg.Content))
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+
+            <div class="input-area">
+                <div class="input-box">
+                    <textarea class="form-control" style="height:105px;" @bind-value="newMessage" @bind-value:event="oninput" placeholder=" Code Assistant 입니다. 무엇을 도와드릴까요?" rows="3" @onkeypress="@HandleKeyDown" />
+                    <button class="send-btn" @onclick="SendMessage">
+                        <i class="arrow-up">▲</i>
+                    </button>
+                </div>
+                <span class="attached-file-description"> Ai Assistant는 실수할 수 있습니다. 중요 정보는 항상 확인하시기 바랍니다.</span>
+            </div>
+        </main>
+    </div>
+}
+
+@code {
+    [Parameter] public ChatRoom selectedRoom { get; set; }
+
+    private string newMessage { get; set; } = "";
+    private List<ChatDTO> Messages = new();
+
+    private bool Loaded { get; set; }
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await LoadData();
+
+            Loaded = true;
+
+            StateHasChanged();
+        }
+    }
+
+
+    private async Task LoadData()
+    {
+        try
+        {
+            await GetChattingList();
+        }
+        catch(Exception ex)
+        {
+            Console.WriteLine(ex.Message);
+        }
+    }
+
+    private List<Chatting> chattingList { get; set; } = new();
+    private async Task GetChattingList()
+    {
+        try
+        {
+            if (!string.IsNullOrEmpty(selectedRoom.UID))
+            {
+                var result = await APIService.PostAPI($"{navManager.BaseUri}", "api/GetChattingList", selectedRoom.UID);
+
+                if (result == "error")
+                {
+                    Console.WriteLine("채팅 리스트를 불러오는 중 에러가 발생했습니다.");
+                    return;
+                }
+                else if(string.IsNullOrEmpty(result))
+                {
+                    Console.WriteLine("채팅 리스트가 없습니다.");
+                    return;
+                }
+
+                chattingList = JsonSerializer.Deserialize<List<Chatting>>(result) ?? new();
+
+                foreach (var item in chattingList.OrderBy(x => x.CreateAt).ThenByDescending(x => x.IsUser == true))
+                {
+                    ChatDTO msg = new();
+                    msg.RoomId = item.Link_RoomId;
+                    msg.UserId = item.IsUser ? "admin" : "";
+                    msg.Role = "user";
+                    msg.Content = item.Content;
+                    msg.IsUser = item.IsUser;
+                    msg.Timestamp = item.CreateAt;
+
+                    Messages.Add(msg);
+                }
+            }
+        }
+        catch(Exception ex)
+        {
+            Console.WriteLine(ex.Message);
+        }
+    }
+
+    private async Task SendMessage()
+    {
+        if (string.IsNullOrWhiteSpace(newMessage)) { newMessage = ""; return; }
+
+        // 사용자 메시지 추가
+        var user = new ChatDTO
+        {
+            Role = "user",
+            UserId = "admin",
+            RoomId = selectedRoom.UID,
+            Content = newMessage,
+            IsUser = true,
+            Timestamp = DateTime.Now
+        };
+
+        newMessage = "";
+        Messages.Add(user);
+
+        // 임시 응답
+        var bot = new ChatDTO
+        {
+            Content = "<img src=\"images/users/speech-bubble.gif\" height=\"20px\" /> <span style=\"font-size:15px; color:lightgray;\">응답을 생성 중입니다...</span>",
+        };
+
+        Messages.Add(bot);
+
+        if (string.IsNullOrEmpty(selectedRoom.UID))
+        {
+            // 채팅룸 제목 생성
+            var result = await APIService.PostAPI($"{navManager.BaseUri}", "api/GetChatRoomName", user.Content);
+
+            if (result == "error" || string.IsNullOrEmpty(result))
+            {
+                Console.WriteLine("채팅방 제목 생성 에러");
+                return;
+            }
+
+            selectedRoom.Title = result;
+            selectedRoom.UID = Guid.NewGuid().ToString("N");
+            selectedRoom.UserId = "admin";
+
+            result = await APIService.PostAPI($"{navManager.BaseUri}", "api/CreateChatRoom", selectedRoom);
+
+            if (result == "error")
+            {
+                Console.WriteLine("채팅방 생성 에러");
+                return;
+            }
+            else
+            {
+                Console.WriteLine(result);
+            }
+        }
+
+        try
+        {
+            // TODO: 여기서 Semantic Kernel 호출 (Ollama 연동)
+            using var client = clientInfo.CreateClient("AIClient");
+            client.BaseAddress = new Uri($"{navManager.BaseUri}");
+
+            using var request = new HttpRequestMessage(HttpMethod.Post, "api/Chat");
+            request.Content = JsonContent.Create(user);
+
+            using var response2 = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
+            Console.WriteLine($"[API 호출 결과] 상태 코드: {response2.StatusCode}");
+
+            if (response2.IsSuccessStatusCode)
+            {
+                bot.Content = string.Empty;
+            }
+            else
+            {
+                var errorBody = await response2.Content.ReadAsStringAsync();
+                bot.Content = errorBody;
+                Console.WriteLine($"[오류 내용]: {errorBody}");
+            }
+
+            using var stream = await response2.Content.ReadAsStreamAsync();
+            using var reader = new StreamReader(stream);
+
+            char[] buffer = new char[1024]; // 넉넉한 버퍼 크기
+            int readCount;
+
+            string botMessage = string.Empty;
+            while ((readCount = await reader.ReadAsync(buffer, 0, buffer.Length)) > 0)
+            {
+                // 읽어온 만큼만 문자열로 변환
+                string chunk = new string(buffer, 0, readCount);
+
+                bot.Content += chunk;
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+        catch (HttpRequestException ex)
+        {
+            Console.WriteLine($"HTTP 요청 오류: {ex.Message}");
+            bot.Content = $"<span style=\"color:red;\">네트워크 오류가 발생했습니다: {ex.Message}</span>";
+        }
+        catch (TaskCanceledException ex)
+        {
+            Console.WriteLine($"타임아웃 오류: {ex.Message}");
+            bot.Content = "<span style=\"color:red;\">요청 시간이 초과되었습니다.</span>";
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"예상치 못한 오류: {ex.Message}");
+            bot.Content = $"<span style=\"color:red;\">오류 발생: {ex.Message}</span>";
+        }
+        finally
+        {
+            await InvokeAsync(StateHasChanged);
+            //db 저장
+            List<Chatting> chatList = new();
+
+            Chatting userchat = new();
+            userchat.IsUser = true;
+            userchat.Content = user.Content;
+            userchat.CreateAt = DateTime.Now;
+            userchat.Link_RoomId = selectedRoom.UID;
+
+            Chatting botChat = new();
+            botChat.IsUser = false;
+            botChat.Content = bot.Content;
+            botChat.CreateAt = DateTime.Now;
+            botChat.Link_RoomId = selectedRoom.UID;
+
+            chatList.Add(userchat);
+            chatList.Add(botChat);
+
+            var save = await APIService.PostAPI($"{navManager.BaseUri}", "api/CreateChatting", chatList);
+            
+            if (save == "error")
+            {
+                Console.WriteLine("채팅 생성 에러");
+            }
+            else
+            {
+                Console.WriteLine(save);
+            }
+        }
+    }
+
+    private async Task HandleKeyDown(KeyboardEventArgs e)
+    {
+        if ((e.Code == "Enter" || e.Code == "NumpadEnter") && e.ShiftKey)
+        {
+            Console.WriteLine("Shift + Enter: 줄바꿈 허용");
+        }
+        else if (e.Code == "Enter" || e.Code == "NumpadEnter")
+        {
+            Console.WriteLine("Enter 입력 됨:" + e.Code);
+            await SendMessage();
+        }
+    }
+}
