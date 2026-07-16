@@ -28,13 +28,25 @@ uploaded_file = st.file_uploader(
     key="dicom_file_uploader"
 )
 
-my_medi_info = MedicalService.get_my_mediinfo(st.session_state.user_profile.id)
-if my_medi_info:
-    rows=[]
-    for row in my_medi_info:
-        rows.append({"부위": row.body_part, "방식": row.modality, "파일 이름": row.file_name, "분석 본문": row.analyzed_text})
-    df = pd.DataFrame(rows)
-    st.dataframe(df)
+if "df" not in st.session_state:
+    my_medi_info = MedicalService.get_my_mediinfo(st.session_state.user_profile.id)
+    if my_medi_info:
+        rows=[]
+        for row in my_medi_info:
+            rows.append({"부위": row.body_part, "방식": row.modality, "파일 이름": row.file_name, "분석 본문": row.analyzed_text})
+        st.session_state.df = pd.DataFrame(rows)
+
+st.dataframe(
+    st.session_state.df, 
+    hide_index=True,
+    use_container_width=True,
+    column_config={
+        "부위": st.column_config.Column(width=100),
+        "방식": st.column_config.Column(width=100),
+        "파일 이름": st.column_config.Column(width=100),
+        "분석 본문": st.column_config.Column(width=1000)
+    }
+)
 
 if uploaded_file is not None:
     if my_medi_info:

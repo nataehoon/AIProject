@@ -177,6 +177,31 @@ def _vlm_detail_research(total_slices: int, target_modality: str, body_part: str
     if vlm_text:
         print(f"vlm_text: {vlm_text}")
         yield vlm_text
+
+def _get_rag_data(vlm_report:str):
+    query_prompt = """You are generating a retrieval query for a medical knowledge base.
+    
+                    Given the structured imaging findings,
+
+                    - Preserve all clinically significant abnormalities.
+                    - Remove findings that are unlikely to improve retrieval unless they are diagnostically important.
+                    - Do not invent findings.
+                    - Produce one concise paragraph optimized for semantic retrieval.
+
+                    Return only the query.
+                    """.strip()
+    queryMessage = [{"role": "system", "content": query_prompt}, {"role": "user", "content": vlm_report}]
+    query_result = run_llm_generator(queryMessage)
+
+    query_text = ""
+    for query in query_result:
+        if query:
+            query_text += query
+    print(f"query_text: {query_text}")
+    v_data = encode(query_text)
+
+    sources = ["qa", "paper"]
+    return RAGService.get_rag_data(v_data, sources)
     
 class MedicalService:
     @staticmethod
@@ -292,29 +317,7 @@ class MedicalService:
 
             print(f"vlm_report: {vlm_report}")
             yield {"status": "판독 데이터를 재검증 데이터를 조회 합니다..."}
-            query_prompt = """You are generating a retrieval query for a medical knowledge base.
-
-                            Given the structured imaging findings,
-
-                            - Preserve all clinically significant abnormalities.
-                            - Remove findings that are unlikely to improve retrieval unless they are diagnostically important.
-                            - Do not invent findings.
-                            - Produce one concise paragraph optimized for semantic retrieval.
-
-                            Return only the query.
-                            """.strip()
-            queryMessage = [{"role": "system", "content": query_prompt}, {"role": "user", "content": vlm_report}]
-            query_result = run_llm_generator(queryMessage)
-
-            query_text = ""
-            for query in query_result:
-                if query:
-                    query_text += query
-            print(f"query_text: {query_text}")
-            v_data = encode(query_text)
-
-            sources = ["qa", "paper"]
-            rag_data = RAGService.get_rag_data(v_data, sources)
+            rag_data = _get_rag_data(vlm_report)
 
             yield {"status": "재검증을 위한 데이터와 분석 데이터를 LLM에게 전송합니다..."}
             verification_prompt = f"""
