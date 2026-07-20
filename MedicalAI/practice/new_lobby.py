@@ -7,8 +7,14 @@ st.set_page_config(
     layout="wide"
 )
 
+@st.dialog("수집 데이터", width="large")
+def raw_data_info():
+    pass
+
 with st.spinner():
     raw_data_list = MedicalService.get_raw_data()
 
     qa_list, paper_list = raw_data_list
     version = [qa for qa in dict.fromkeys(qa.version for qa in qa_list)]
+
+    

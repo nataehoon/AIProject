@@ -1,21 +1,24 @@
 import os
 
-OLLAMA_VLM_API_URL = "https://overrate-comprised-outfield.ngrok-free.dev/v1/image/completions"
+VLM_API_URL = "https://overrate-comprised-outfield.ngrok-free.dev/v1/transformers/chat/completions"
 VLM_NUM_PREDICT = 8192
 VLM_NUM_CTX = 32768
-VLM_MODEL = "qwen3-vl:8b-instruct"
+VLM_MAX_TOKEN = 2048
+VLM_MODEL = "google/medgemma-4b-it"
 VLM_THINK = False
 
-OLLAMA_LLM_API_URL = "https://overrate-comprised-outfield.ngrok-free.dev/v1/image/completions"
+LLM_API_URL = "https://overrate-comprised-outfield.ngrok-free.dev/v1/transformers/chat/completions"
 LLM_NUM_PREDICT = 8192
 LLM_NUM_CTX = 8192
-LLM_MODEL = "qwen3-vl:8b-instruct"
+LLM_MAX_TOKEN = 2048
+LLM_MODEL = "google/medgemma-4b-it"
 LLM_THINK = True
 
-ROUTER_LLM_API_URL = "https://overrate-comprised-outfield.ngrok-free.dev/v1/image/completions"
+ROUTER_LLM_API_URL = "https://overrate-comprised-outfield.ngrok-free.dev/v1/transformers/chat/completions"
 ROUTER_NUM_PREDICT = 1024
 ROUTER_NUM_CTX = 2048
-ROUTER_MODEL = "qwen3-vl:8b-instruct"
+ROUTER_MAX_TOKEN = 2048
+ROUTER_MODEL = "google/medgemma-4b-it"
 ROUTER_THINK = False
 
 DEFAULT_TEMPERATURE = 0.0

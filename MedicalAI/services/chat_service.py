@@ -196,12 +196,8 @@ class ChatService:
         routMessage.append({"role": "user", "content": rout_user_prompt})
 
         rout_response = ai_processor.run_router_llm(routMessage)
-        result_rout = ""
 
-        for chunk in rout_response:
-            result_rout += chunk
-
-        return result_rout
+        return rout_response
 
     @staticmethod
     def send_chat(recent_chatMessage: List[Dict[str, str]], summary_chatMessage: str, user_id: str):
@@ -222,7 +218,7 @@ class ChatService:
                 system_prompt = _pre_data_collection(body_part, user_id)
 
                 if system_prompt:
-                    chatMessage.append({"role": "system", "content": system_prompt})
+                    chatMessage.append({"role": "system", "content": f"[Medical Info Report]\n{system_prompt}"})
 
             yield {"status": "질문에 대한 참고 문헌을 조회합니다..."}
 
@@ -230,7 +226,12 @@ class ChatService:
             if len(sources) > 0:
                 rag_data = _get_rag_data(recent_chatMessage, summary_chatMessage, sources)
                 print(f"rag_data: {rag_data}")
-                chatMessage.append({"role": "system", "content": f"{rag_data}"})
+                if rag_data:
+                    system_message = next((msg for msg in chatMessage if msg["role"] == "system"), None)
+                    if system_message:
+                        system_message["content"] += f"\n\n[Retrieved Medical Knowledge]\n{rag_data}"
+                    else:
+                        chatMessage.append({"role": "system", "content": f"[Retrieved Medical Knowledge]\n{rag_data}"})
 
         if len(recent_chatMessage) >= 2:
             yield {"status": "사전 답변을 정리하여 문맥을 파악합니다..."}
@@ -243,8 +244,9 @@ class ChatService:
 
         yield {"status": "질문을 LLM에게 전달합니다..."}
         for recent_msg in recent_chatMessage:
-            chatMessage.append(recent_msg)
-
+            if recent_msg["role"] == "user":
+                chatMessage.append(recent_msg)
+                
         llm_response = ai_processor.run_llm_generator(chatMessage)
 
         yield {"status": "답변을 불러오는 중입니다..."}

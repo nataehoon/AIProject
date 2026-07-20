@@ -4,7 +4,7 @@
   "settings": {
     "width": 2000,
     "height": 2000,
-    "scrollTop": -200,
+    "scrollTop": 0,
     "scrollLeft": 0,
     "zoomLevel": 1,
     "show": 510,
@@ -139,7 +139,8 @@
           "YelWYmeSIKcDXi1VcgNIC",
           "-dELYh_IS3_aH5ITgAc99",
           "9vEojVl-o_-Gk9yuXaRpt",
-          "KCdGYb2EiuHsceg8NuZZA"
+          "KCdGYb2EiuHsceg8NuZZA",
+          "7URsXiVkycqKQMAKwciXh"
         ],
         "seqColumnIds": [
           "Bo_bG5Ie1sxGyyi9XFvau",
@@ -149,10 +150,11 @@
           "YelWYmeSIKcDXi1VcgNIC",
           "-dELYh_IS3_aH5ITgAc99",
           "9vEojVl-o_-Gk9yuXaRpt",
-          "KCdGYb2EiuHsceg8NuZZA"
+          "KCdGYb2EiuHsceg8NuZZA",
+          "7URsXiVkycqKQMAKwciXh"
         ],
         "ui": {
-          "x": 897,
+          "x": 898,
           "y": 267,
           "zIndex": 195,
           "widthName": 60,
@@ -160,7 +162,7 @@
           "color": ""
         },
         "meta": {
-          "updateAt": 1783754947741,
+          "updateAt": 1784550937638,
           "createAt": 1782529239608
         }
       },
@@ -846,18 +848,18 @@
         "tableId": "niwJHbwrr92k4EVA9MkD-",
         "name": "modality",
         "comment": "'CR', 'MR', 'US', 'CT', 'DX'",
-        "dataType": "dicom_modality",
+        "dataType": "varchat(50)",
         "default": "",
         "options": 8,
         "ui": {
           "keys": 0,
           "widthName": 60,
           "widthComment": 129,
-          "widthDataType": 86,
+          "widthDataType": 61,
           "widthDefault": 60
         },
         "meta": {
-          "updateAt": 1783755119314,
+          "updateAt": 1784550931291,
           "createAt": 1782529960217
         }
       },
@@ -868,7 +870,7 @@
         "comment": "분석 파일 이름",
         "dataType": "text",
         "default": "",
-        "options": 12,
+        "options": 8,
         "ui": {
           "keys": 0,
           "widthName": 60,
@@ -877,7 +879,7 @@
           "widthDefault": 60
         },
         "meta": {
-          "updateAt": 1782530662116,
+          "updateAt": 1784550907874,
           "createAt": 1782530370753
         }
       },
@@ -1660,6 +1662,26 @@
           "updateAt": 1783755112371,
           "createAt": 1783754944528
         }
+      },
+      "7URsXiVkycqKQMAKwciXh": {
+        "id": "7URsXiVkycqKQMAKwciXh",
+        "tableId": "niwJHbwrr92k4EVA9MkD-",
+        "name": "created_at",
+        "comment": "업로드 일",
+        "dataType": "timestamp",
+        "default": "now()",
+        "options": 8,
+        "ui": {
+          "keys": 0,
+          "widthName": 60,
+          "widthComment": 60,
+          "widthDataType": 60,
+          "widthDefault": 60
+        },
+        "meta": {
+          "updateAt": 1784550956102,
+          "createAt": 1784550896489
+        }
       }
     },
     "relationshipEntities": {
@@ -1710,8 +1732,8 @@
           "columnIds": [
             "mOOsQkOnqKoFpT0NFirZu"
           ],
-          "x": 897,
-          "y": 367,
+          "x": 898,
+          "y": 379,
           "direction": 1
         },
         "meta": {
