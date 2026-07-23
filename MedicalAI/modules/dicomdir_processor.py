@@ -2,6 +2,46 @@ import pydicom
 import io
 import zipfile
 import numpy as np
+from pydicom.dataset import Dataset
+from collections import defaultdict
+import modules.classification as classification
+
+def _group_by_series(datasets: list[Dataset]):
+    series_map: dict[str, list[Dataset]] = defaultdict(list)
+
+    for ds in datasets:
+        series_uid = str(getattr(ds, "SeriesInstanceUID", "UNKNOWN_SERIES"))
+        series_map[series_uid].append(ds)
+
+    return dict(series_map)
+
+def dicom_research_process(uploaded_zip):
+    uploaded_zip.seek(0)
+    datasets: list[Dataset] = []
+    with zipfile.ZipFile(uploaded_zip, "r") as archive:
+        for file_info in archive.infolist():
+            if file_info.is_dir():
+                continue
+
+            try:
+                raw_bytes = archive.read(file_info.filename)
+                ds = pydicom.dcmread(io.BytesIO(raw_bytes), force=False)
+
+                if "PixelData" not in ds:
+                    continue
+
+                datasets.append(ds)
+
+            except (pydicom.errors.InvalidDicomError, EOFError, ValueError):
+                continue
+
+    if not datasets:
+        raise ValueError("ZIP 파일에서 PixelData를 가진 DICOM을 찾지 못했습니다.")
+
+    series_map = _group_by_series(datasets)
+
+    MRI_Classification_result = classification.MRI_classification(series_map)
+    print(MRI_Classification_result)
 
 def process_dicom_zip(uploaded_zip):
     """[함수 설명]: 업로드 컴포넌트가 전달한 파일 바이트 스트림을 pydicom 라이브러리를 통해 읽어 환자 메타데이터를 추출합니다."""

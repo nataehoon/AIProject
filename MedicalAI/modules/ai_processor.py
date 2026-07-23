@@ -91,4 +91,17 @@ def run_vlm_generator(chatMessage: List[Dict[str, Any]], response_format: Dict[s
                 
             except Exception as e:
                 print(f"[스트림 파싱 예외 발생]: {e}")
+
+def classification_api(image_info: list[dict[str, Any]]):
+    files = []
+    for metadata in image_info:
+        
+        image_list = metadata.get("image_buffers")
+        del metadata["image_buffers"]
+        for index, image in enumerate(image_list):
+            files.append(("images", (f"{metadata.get("description")}_{index+1}.png", image, "image/png")))
     
+    response = requests.post(config.CLASSIFICATION_API_URL, data={"image_info": json.dumps(image_info)}, files=files)
+    response.raise_for_status()
+    
+    return response.json()

@@ -28,8 +28,13 @@ uploaded_file = st.file_uploader(
     key="dicom_file_uploader"
 )
 
+if "my_medi_info" not in st.session_state:
+    st.session_state.my_medi_info = MedicalService.get_my_mediinfo(st.session_state.user_profile.id)
+
+my_medi_info = st.session_state.my_medi_info
+
 if "df" not in st.session_state:
-    my_medi_info = MedicalService.get_my_mediinfo(st.session_state.user_profile.id)
+    
     if my_medi_info:
         rows=[]
         for row in my_medi_info:
@@ -50,10 +55,12 @@ st.dataframe(
 
 if uploaded_file is not None:
     if my_medi_info:
+        print(f"my_medi_info: {my_medi_info}")
         if uploaded_file.name in (row.file_name for row in my_medi_info):
             _already_uploaded_file()
+        
 
-    upload_result = MedicalService.dicom_file_process(uploaded_file, st.session_state.user_profile.id)
+    upload_result = MedicalService.dicom_file_detaile_research(uploaded_file, st.session_state.user_profile.id)
     with st.status("🔍 AI 하이브리드 판독 엔진 구동 중...", expanded=False) as status:
         for result in upload_result:
             st.write(result.get("status", "처리 중..."))

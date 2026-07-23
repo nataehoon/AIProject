@@ -4,7 +4,7 @@ from datetime import datetime
 from modules.sentence_transformer import encode, list_encode
 from datasets import load_dataset
 from config import QA_DATASET_MODEL, PAPER_DATASET_MODEL
-from modules.dicomdir_processor import process_dicom_zip
+from modules.dicomdir_processor import process_dicom_zip, dicom_research_process
 from modules.ai_processor import run_vlm_generator, run_llm_generator
 from services.rag_service import RAGService
 import matplotlib.pyplot as plt
@@ -278,6 +278,16 @@ class MedicalService:
             params = (version, version)
             
             execute_non_query(query, params)
+
+    @staticmethod
+    def dicom_file_detaile_research(uploaded_file, user_id: str):
+        medi_info = Mediinfo()
+        medi_info.file_name = uploaded_file.name
+        medi_info.member_id = user_id
+
+        yield {"status": "DICOM파일의 분석을 시작합니다..."}
+        dicom_research_process(uploaded_file)
+        
 
     @staticmethod
     def dicom_file_process(uploaded_file, user_id:str):
